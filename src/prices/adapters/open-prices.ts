@@ -53,6 +53,8 @@ export interface OpenPricesItem {
   date?: string | null;
   product?: {
     product_name?: string | null;
+    /** Open Food Facts categories, e.g. ["en:vegetables", "en:leeks"]. */
+    categories_tags?: string[] | null;
     product_quantity?: number | null;
     product_quantity_unit?: string | null;
   } | null;
@@ -61,7 +63,7 @@ export interface OpenPricesItem {
     osm_brand?: string | null;
     osm_address_city?: string | null;
     osm_address_country_code?: string | null;
-    /** DecimalField: serialized as a string. */
+    /** JSON numbers (the API sets COERCE_DECIMAL_TO_STRING false); numeric strings are accepted. */
     osm_lat?: number | string | null;
     osm_lon?: number | string | null;
   } | null;
@@ -95,14 +97,24 @@ function words(text: string): string[] {
     .map((w) => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w));
 }
 
-/** True when the term's words appear, in order and adjacent, in the label. */
-export function matchesTerm(label: string, term: string): boolean {
-  const l = words(label).join(" ");
+/** True when a category tag names exactly the term ("en:collard-greens" = "collard greens"). */
+export function matchesTerm(tag: string, term: string): boolean {
   const t = words(term).join(" ");
-  return t !== "" && ` ${l} `.includes(` ${t} `);
+  return t !== "" && words(tag).join(" ") === t;
+}
+
+/**
+ * Conservative, since the comparison table shows no product text: a CATEGORY row matches by
+ * its `category_tag`, a PRODUCT row only by one of its product's `categories_tags`. Product
+ * names are never matched, so "Leek and Potato Soup" is not leeks.
+ */
+export function rowMatches(p: OpenPricesItem, term: string): boolean {
+  if (p.type === "CATEGORY") return matchesTerm(p.category_tag ?? "", term);
+  return (p.product?.categories_tags ?? []).some((t) => matchesTerm(t, term));
 }
 
 function num(v: unknown): number | undefined {
+  if (typeof v === "string" && v.trim() === "") return undefined;
   const n = typeof v === "string" ? Number(v) : v;
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
@@ -134,6 +146,8 @@ interface Usable {
 /** What the run's one nearby query returned and what was kept. */
 interface AreaResult {
   pages: number;
+  /** `pages` of the last response: more than `pages` when MAX_PAGES cut the query short. */
+  totalPages: number;
   rows: number;
   usable: Usable[];
   outOfRange: number;
@@ -172,10 +186,14 @@ export class OpenPricesAdapter implements StoreAdapter {
     const r = this.result;
     if (r === undefined) return undefined;
     return (
-      `1 nearby query (${r.pages} page${r.pages === 1 ? "" : "s"}): ${r.rows} rows, ` +
+      `1 nearby query (${
+        r.totalPages > r.pages
+          ? `first ${r.pages} of ${r.totalPages} pages`
+          : `${r.pages} page${r.pages === 1 ? "" : "s"}`
+      }): ${r.rows} rows, ` +
       `${this.matched.size} matched a search term at a listed store; dropped ` +
       `${r.outOfRange} out of range, ${r.unlisted} at unlisted stores, ` +
-      `${r.unusable} without USD price or date`
+      `${r.unusable} without a positive USD price or a date`
     );
   }
 
@@ -187,7 +205,7 @@ export class OpenPricesAdapter implements StoreAdapter {
     const fetchedAt = new Date(this.now()).toISOString();
     const offers: Offer[] = [];
     for (const { item: p, store, price, date, label } of area.usable) {
-      if (!matchesTerm(label, term) && !matchesTerm(p.category_tag ?? "", term)) continue;
+      if (!rowMatches(p, term)) continue;
       this.matched.add(String(p.id));
       const regular = num(p.price_without_discount);
       const promo = p.price_is_discounted === true && regular !== undefined && regular > price;
@@ -227,7 +245,7 @@ export class OpenPricesAdapter implements StoreAdapter {
     const date = p.date ?? "";
     if (
       price === undefined ||
-      !(price >= 0) ||
+      !(price > 0) ||
       p.currency !== "USD" ||
       !isDay(date) ||
       date > today
@@ -248,6 +266,7 @@ export class OpenPricesAdapter implements StoreAdapter {
         const today = localDay(this.now());
         const r: AreaResult = {
           pages: 0,
+          totalPages: 0,
           rows: 0,
           usable: [],
           outOfRange: 0,
@@ -270,6 +289,7 @@ export class OpenPricesAdapter implements StoreAdapter {
           if (res.status !== 200) throw new Error(`Open Prices prices: HTTP ${res.status}`);
           const body = parsePage(res.body);
           r.pages++;
+          r.totalPages = body.pages;
           r.rows += body.items.length;
           for (const p of body.items) {
             const c = this.classify(p, radiusKm, today);

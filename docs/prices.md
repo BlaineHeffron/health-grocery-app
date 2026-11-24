@@ -41,7 +41,8 @@ Offers are converted to the line's unit: weights (lb, oz, kg, g), counts (`each`
   then, whatever the week and with `--refresh` too.
 - For each store, item and source, only the most recent day's prices count (a newer receipt
   supersedes an older one). Kroger prices are dated by the fetch day; Open Prices prices keep
-  the contributor's own date, and a refetch replaces all of that source's rows for the term. Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
+  the contributor's own date, and a refetch replaces all of that source's rows for the term.
+  Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
   shown as stale and not ranked. Every price shows its age in days.
 
 ## Open Prices (aggregator source `open-prices`)
@@ -55,12 +56,17 @@ Why it qualifies, and its Charleston coverage (none today): `docs/stores.md`.
   set to another ZIP the source reports "not configured" and sends nothing (there is no
   geocoder).
 - **Rows are checked again locally:** a row counts only if its own location is in the US and
-  inside the radius, its brand or name maps to a listed store, and it has a USD price and a
-  past date. A 200 response that is not the documented page (`items` array, numeric `pages` and
+  inside the radius, its brand or name maps to a listed store, and it has a positive USD price
+  and a past date. A `CATEGORY` row matches a search term only when its `category_tag` names
+  exactly the term, a barcode (`PRODUCT`) row only when one of its product's `categories_tags`
+  does; product names are never matched, so terms with extra words (`garlic bulb`) match
+  nothing. A 200 response that is not the documented page (`items` array, numeric `pages` and
   `total`) is a source error, not "no prices".
 - **Run line:** `open-prices: ok (1 nearby query (N pages): R rows, M matched a search term at a
-  listed store; dropped A out of range, B at unlisted stores, C without USD price or date)`.
-  On an error it shows the error and how many terms were searched.
+  listed store; dropped A out of range, B at unlisted stores, C without a positive USD price or
+  a date)`, with "first 5 of P pages" when the page cap cut it short. A same-day re-run says
+  `ok (N terms cached today, no request)`. On an error it shows the error and how many terms
+  were searched.
 - **Age:** each offer keeps the price's own date as `observedOn`; `ageDays` and
   `--max-age-days` use it. A refetch replaces every stored Open Prices row of that search term,
   whatever its store or date, so prices removed at the source disappear.
@@ -71,7 +77,8 @@ Why it qualifies, and its Charleston coverage (none today): `docs/stores.md`.
 - **Share-alike:** the local SQLite database becomes a derivative database of Open Prices under
   the ODbL. It stays local and untracked; nothing derived from Open Prices is published from
   this repo. Anyone who publishes the database, or an export of its Open Prices rows, must do so
-  under the ODbL with the attribution above.
+  under the ODbL with the attribution above. Kroger rows in the same table are not open data and
+  must not be published with it.
 
 ## Manual entry and CSV import
 `add` stores one price with source `manual`; `--date` is the receipt or shelf date (default

@@ -5,6 +5,7 @@ import {
   distanceKm,
   matchesTerm,
   OpenPricesAdapter,
+  rowMatches,
   storeForLocation,
 } from "../src/prices/adapters/open-prices.js";
 import { createAdapters, SOURCES } from "../src/prices/adapters/registry.js";
@@ -77,12 +78,13 @@ test("prices map to listed stores with their own date, size and promo", async ()
     [["food-lion", 1, "?"]],
   );
   // 9008 is a Publix far outside the radius (a filter the server ignored must not leak it);
-  // EUR (9005) and undated (9007) leeks are dropped; ids count once across terms.
+  // EUR (9005), undated (9007) and $0 (9010) leeks are dropped; ids count once across terms.
+  // 9009 "Example Leek and Potato Soup" at Aldi is usable but is not leeks (its categories).
   await adapter.search("leeks", near);
   assert.equal(
     adapter.note(),
-    "1 nearby query (1 page): 8 rows, 3 matched a search term at a listed store; " +
-      "dropped 1 out of range, 1 at unlisted stores, 2 without USD price or date",
+    "1 nearby query (1 page): 10 rows, 3 matched a search term at a listed store; " +
+      "dropped 1 out of range, 1 at unlisted stores, 3 without a positive USD price or a date",
   );
 });
 
@@ -141,7 +143,7 @@ test("empty coverage: no prices nearby gives no offers, and the note says so", a
   assert.equal(
     adapter.note(),
     "1 nearby query (1 page): 0 rows, 0 matched a search term at a listed store; " +
-      "dropped 0 out of range, 0 at unlisted stores, 0 without USD price or date",
+      "dropped 0 out of range, 0 at unlisted stores, 0 without a positive USD price or a date",
   );
 });
 
@@ -177,10 +179,12 @@ test("location brand/name and term matching", () => {
   assert.equal(storeForLocation({ osm_brand: "Earth Fare", osm_name: "Earth Fare" }), undefined);
   assert.equal(storeForLocation(null), undefined);
   assert.ok(matchesTerm("en:collard-greens", "collard greens"));
-  assert.ok(matchesTerm("Example Organic Leeks", "leeks"));
   assert.ok(matchesTerm("en:leeks", "leek"));
-  assert.ok(!matchesTerm("en:leek-soups", "leeks soup bowl"));
+  // Exact tag only: the cost is that terms like these match nothing.
+  assert.ok(!matchesTerm("en:leek-soups", "leeks"));
+  assert.ok(!matchesTerm("en:sweet-potatoes", "potatoes"));
   assert.ok(!matchesTerm("en:garlic", "garlic bulb"));
+  assert.ok(!matchesTerm("en:broccoli", "broccoli crowns"));
 });
 
 test("the registry builds the Open Prices adapter and lists it as a source", () => {
@@ -273,4 +277,65 @@ test("a ZIP other than the default the centre stands for: not configured, no req
   assert.equal(viaConfig?.status().configured, false);
   await assert.rejects(other.search("leeks", { zip: "29464", radiusMiles: 15 }), /ZIP 29401 only/);
   assert.equal(net.calls.length, 0);
+});
+
+test("PRODUCT rows match by their categories only, never by product name", () => {
+  const product = (name: string, categories: string[]) => ({
+    type: "PRODUCT",
+    product: { product_name: name, categories_tags: categories },
+  });
+  const soup = product("Broccoli Cheddar Soup", ["en:meals", "en:soups", "en:broccoli-soups"]);
+  assert.ok(!rowMatches(soup, "broccoli"));
+  // A name that says strawberries on a product whose categories say yogurt.
+  const yogurt = product("Chocolate Covered Strawberry", ["en:dairies", "en:greek-style-yogurts"]);
+  assert.ok(!rowMatches(yogurt, "strawberries"));
+  assert.ok(rowMatches(product("Example Leeks", ["en:vegetables", "en:leeks"]), "leeks"));
+  assert.ok(!rowMatches({ type: "PRODUCT", product: { product_name: "Leeks" } }, "leeks"));
+  assert.ok(rowMatches({ type: "CATEGORY", category_tag: "en:leeks" }, "leeks"));
+  assert.ok(!rowMatches({ type: "CATEGORY", category_tag: "en:leeks" }, "carrots"));
+});
+
+test("a $0, empty or negative price is never ranked", async () => {
+  const row = (id: number, price: unknown) => ({
+    id,
+    type: "CATEGORY",
+    category_tag: "en:leeks",
+    price,
+    price_per: "KILOGRAM",
+    currency: "USD",
+    date: "2026-11-20",
+    location: {
+      osm_brand: "Publix",
+      osm_name: "Publix",
+      osm_address_country_code: "US",
+      osm_lat: 32.78,
+      osm_lon: -79.93,
+    },
+  });
+  // String decimals are tolerated (the live API sends numbers), so "2.5" still counts.
+  const items = [row(1, 0), row(2, ""), row(3, -1), row(4, null), row(5, "2.5")];
+  const { adapter } = setup(
+    openPricesRoutes({
+      "/api/v1/prices": () => ({ body: JSON.stringify({ items, page: 1, pages: 1, total: 5 }) }),
+    }),
+  );
+  const offers = await adapter.search("leeks", near);
+  assert.deepEqual(
+    offers.map((o) => o.price),
+    [2.5],
+  );
+  assert.match(adapter.note() ?? "", /4 without a positive USD price or a date$/);
+});
+
+test("the run line says when the 5-page cap cut the query short", async () => {
+  const { net, adapter } = setup(
+    openPricesRoutes({
+      "/api/v1/prices": () => ({
+        body: JSON.stringify({ items: [{ id: 1 }], page: 1, pages: 9, size: 1, total: 9 }),
+      }),
+    }),
+  );
+  await adapter.search("leeks", near);
+  assert.equal(prices(net).length, 5);
+  assert.match(adapter.note() ?? "", /^1 nearby query \(first 5 of 9 pages\): 5 rows/);
 });

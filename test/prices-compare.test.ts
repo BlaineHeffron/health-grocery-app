@@ -488,8 +488,8 @@ test("Open Prices offers join the comparison with their store, source, own date 
       kind: "aggregator",
       status: "ok",
       detail:
-        "1 nearby query (1 page): 8 rows, 4 matched a search term at a listed store; " +
-        "dropped 1 out of range, 1 at unlisted stores, 2 without USD price or date",
+        "1 nearby query (1 page): 10 rows, 4 matched a search term at a listed store; " +
+        "dropped 1 out of range, 1 at unlisted stores, 3 without a positive USD price or a date",
       attribution:
         "Open Prices data © Open Food Facts contributors, ODbL 1.0 (https://prices.openfoodfacts.org)",
     },
@@ -581,6 +581,19 @@ test("Open Prices 504: a per-source error, no stored back-off, manual prices sti
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM price_backoffs").get()?.n, 0);
   db.close();
   assert.equal(net.calls.length, 2, "robots.txt + one query, no retry");
+});
+
+test("Open Prices same-day re-run: cached, no request, and the run line says so", async () => {
+  const ws = workspace();
+  const first = openPricesCli(ws);
+  assert.equal(await first.c.run("compare", "--week", "1"), 0);
+  const again = openPricesCli(ws);
+  assert.equal(await again.c.run("compare", "--week", "1"), 0);
+  assert.equal(again.net.calls.length, 0);
+  assert.match(
+    again.c.out.join("\n"),
+    /^ {2}open-prices: ok \(5 terms cached today, no request\)$/m,
+  );
 });
 
 test("prices stores lists the Open Prices source with its attribution", async () => {

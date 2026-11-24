@@ -85,10 +85,14 @@ export function renderHuman(
   for (const run of meta.runs) {
     // An aggregator answers every term from one query; its note says what that query did.
     const aggregator = SOURCES.some((s) => s.id === run.store);
-    const counts =
-      run.status === "not-configured" || (aggregator && run.status === "ok")
-        ? ""
-        : ` (${run.fetched} ${aggregator ? "searched" : "fetched"}, ${run.cached} cached)`;
+    let counts = ` (${run.fetched} ${aggregator ? "searched" : "fetched"}, ${run.cached} cached)`;
+    if (run.status === "not-configured") counts = "";
+    else if (aggregator && run.status === "ok") {
+      counts =
+        run.cached === 0
+          ? ""
+          : ` (${run.cached} terms cached today${run.fetched === 0 ? ", no request" : ""})`;
+    }
     out.push(
       `  ${run.store}: ${run.status.replace("-", " ")}${run.detail ? ` (${run.detail})` : ""}${counts}`,
     );
