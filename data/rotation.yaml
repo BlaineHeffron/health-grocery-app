@@ -1,0 +1,13 @@
+# Nutrient-variety rotation: generic vegetable/food families, no personal data.
+weeks:
+  1: [leeks, carrots, chard, mushrooms]
+  2: [collards or turnip greens, fennel, radicchio or endive, "sweet potato (cooked then chilled)"]
+  3: ["Jerusalem artichoke (small portion)", red cabbage or sauerkraut, celery root or parsnip, spinach]
+  4: [beets with greens, bok choy, shallots and garlic, "potato (cooked then chilled)", a new mushroom]
+every_week:
+  - broccoli
+  - winter squash
+  - item: okra or zucchini
+    seasonal: true   # in season only
+  - lettuce and arugula
+  - a legume

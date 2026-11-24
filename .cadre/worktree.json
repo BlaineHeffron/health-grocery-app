@@ -1,0 +1,5 @@
+{
+  "cleanup": "on-merge",
+  "disposable": ["node_modules/**", "tmp/**", "logs/**"],
+  "merge": "reviewer"
+}
