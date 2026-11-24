@@ -8,6 +8,7 @@ import { createPricesCommand } from "../src/commands/prices.js";
 import { loadConfig } from "../src/config.js";
 import { migrate, openDb } from "../src/db.js";
 import { KrogerAdapter } from "../src/prices/adapters/kroger.js";
+import { OpenPricesAdapter } from "../src/prices/adapters/open-prices.js";
 import type { StoreAdapter } from "../src/prices/adapters/types.js";
 import { basketLines, parseCatalog } from "../src/prices/catalog.js";
 import { collectOffers } from "../src/prices/collect.js";
@@ -16,7 +17,13 @@ import { PoliteFetcher } from "../src/prices/fetcher.js";
 import { importCsv } from "../src/prices/manual.js";
 import { parseRotation } from "../src/prices/rotation.js";
 import { latestOffers } from "../src/prices/store.js";
-import { fakeClock, fakeFetch, krogerRoutes } from "./prices-helpers.js";
+import {
+  fakeClock,
+  fakeFetch,
+  krogerRoutes,
+  openPricesFixture,
+  openPricesRoutes,
+} from "./prices-helpers.js";
 
 const ROTATION = `weeks:
   1: [leeks, collards or turnip greens]
@@ -308,6 +315,7 @@ test("compare --json has the documented shape and --week scopes the basket", asy
     "scope",
     "maxAgeDays",
     "stores",
+    "sources",
     "lines",
     "singleStore",
     "split",
@@ -338,7 +346,7 @@ test("compare --json has the documented shape and --week scopes the basket", asy
   assert.match(text, /collards or turnip greens\s+\$1\.79\/bunch aldi \(turnip greens\), 4 d/);
   assert.match(
     text,
-    /food-lion Collards in a jar, \$2\.00 for 32 fl oz, 1 d: cannot convert fl oz to bunch/,
+    /food-lion Collards in a jar, \$2\.00 for 32 fl oz, 1 d \(manual\): cannot convert fl oz to bunch/,
   );
   assert.match(text, /Single store: publix \$9\.99 for 4\/4 items/);
   assert.match(text, /Split basket: \$7\.79 across aldi, publix/);
@@ -450,4 +458,152 @@ test("a 429 back-off persists across runs, --refresh and weeks; manual prices st
     /harris-teeter: not configured \(set KROGER_CLIENT_ID and KROGER_CLIENT_SECRET in \.env\)/,
   );
   assert.match(c.out.join("\n"), /Split basket: \$7\.79/);
+});
+
+function openPricesCli(ws: ReturnType<typeof workspace>, routes = openPricesRoutes()) {
+  const clock = fakeClock(NOW);
+  const net = fakeFetch(routes, clock.now);
+  const adapters = () => [
+    new OpenPricesAdapter(
+      new PoliteFetcher({ fetchImpl: net.impl, now: clock.now, sleep: clock.sleep }),
+      undefined,
+      clock.now,
+    ),
+  ];
+  return { net, c: cli(ws, adapters) };
+}
+
+test("Open Prices offers join the comparison with their store, source, own date and attribution", async () => {
+  const ws = workspace();
+  seededDb(ws).close();
+  const { net, c } = openPricesCli(ws);
+  assert.equal(await c.run("compare", "--week", "1", "--json"), 0);
+  // robots.txt + one nearby query for all five search terms.
+  assert.equal(net.calls.length, 2);
+  const json = JSON.parse(c.out.join("\n"));
+  assert.deepEqual(json.sources, [
+    {
+      id: "open-prices",
+      name: "Open Prices (Open Food Facts)",
+      kind: "aggregator",
+      status: "ok",
+      detail:
+        "1 nearby query (1 page): 10 rows, 4 matched a search term at a listed store; " +
+        "dropped 1 out of range, 1 at unlisted stores, 3 without a positive USD price or a date",
+      attribution:
+        "Open Prices data © Open Food Facts contributors, ODbL 1.0 (https://prices.openfoodfacts.org)",
+    },
+  ]);
+  const leeks = json.lines[0];
+  const ht = leeks.byStore.find((o: { store: string }) => o.store === "harris-teeter");
+  assert.deepEqual(
+    [ht.source, ht.observedOn, ht.ageDays, ht.promo, ht.regularPrice, ht.unitPrice],
+    ["open-prices", "2026-11-22", 2, true, 3.49, 2.9873],
+  );
+  // Same store, two sources: the cheaper offer represents Publix (manual 3.00/lb vs 4.40/kg).
+  const publix = leeks.byStore.find((o: { store: string }) => o.store === "publix");
+  assert.deepEqual([publix.source, publix.unitPrice, publix.ageDays], ["open-prices", 1.9958, 4]);
+  const greens = json.lines[1];
+  assert.deepEqual(
+    greens.excluded
+      .filter((e: { source: string }) => e.source === "open-prices")
+      .map((e: { store: string; reason: string }) => [e.store, e.reason]),
+    [
+      ["food-lion", 'unknown unit "?"'],
+      ["lowes-foods", "stale: 541 d old (cutoff 30 d)"],
+    ],
+  );
+
+  const human = cli(ws, () => []);
+  assert.equal(await human.run("compare", "--week", "1", "--offline"), 0);
+  const text = human.out.join("\n");
+  assert.match(text, /^ {2}open-prices: offline \(stored prices only\)$/m);
+  assert.match(text, /^leeks\s+\$1\.50\/lb aldi, 4 d\s+\$2\.00\/lb publix via open-prices, 4 d$/m);
+  assert.match(
+    text,
+    /food-lion Example Collard Greens @ Food Lion, Example City \(Open Prices #9004\), \$2\.19 for 1 \?, 3 d \(open-prices\): unknown unit/,
+  );
+  assert.match(text, /^Open Prices data © Open Food Facts contributors, ODbL 1\.0/m);
+});
+
+test("Open Prices: stale prices are not ranked, and a refetch replaces rows of every date", async () => {
+  const ws = workspace();
+  const { c } = openPricesCli(ws);
+  assert.equal(await c.run("compare", "--week", "1", "--json", "--max-age-days", "30"), 0);
+  const greens = JSON.parse(c.out.join("\n")).lines[1];
+  // 9006 (Lowes Foods, 2025-06-01) is 541 days old.
+  assert.ok(
+    greens.excluded.some(
+      (e: { store: string; reason: string }) =>
+        e.store === "lowes-foods" && e.reason === "stale: 541 d old (cutoff 30 d)",
+    ),
+  );
+  const db = openDb(ws.dbPath);
+  const op = () => latestOffers(db, ["leeks"]).filter((o) => o.source === "open-prices");
+  assert.deepEqual(
+    op().map((o) => [o.store, o.observedOn]),
+    [
+      ["harris-teeter", "2026-11-22"],
+      ["publix", "2026-11-20"],
+    ],
+  );
+  // Next fetch: the Publix price was removed at the source; it must disappear here too.
+  const fixture = JSON.parse(openPricesFixture("prices-nearby.json"));
+  fixture.items = fixture.items.filter((p: { id: number }) => p.id !== 9001);
+  const later = openPricesCli(
+    ws,
+    openPricesRoutes({ "/api/v1/prices": () => ({ body: JSON.stringify(fixture) }) }),
+  );
+  assert.equal(await later.c.run("compare", "--week", "1", "--refresh"), 0);
+  assert.deepEqual(
+    op().map((o) => o.store),
+    ["harris-teeter"],
+  );
+  db.close();
+});
+
+test("Open Prices 504: a per-source error, no stored back-off, manual prices still compared", async () => {
+  const ws = workspace();
+  seededDb(ws).close();
+  const { net, c } = openPricesCli(
+    ws,
+    openPricesRoutes({ "/api/v1/prices": () => ({ status: 504, body: "Gateway Time-out" }) }),
+  );
+  assert.equal(await c.run("compare", "--week", "1"), 0);
+  const text = c.out.join("\n");
+  assert.match(
+    text,
+    /^ {2}open-prices: error \(Open Prices prices: HTTP 504\) \(1 searched, 0 cached\)$/m,
+  );
+  assert.match(text, /Split basket: \$7\.79 across aldi, publix/);
+  assert.doesNotMatch(text, /ODbL/);
+  const db = openDb(ws.dbPath);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM price_backoffs").get()?.n, 0);
+  db.close();
+  assert.equal(net.calls.length, 2, "robots.txt + one query, no retry");
+});
+
+test("Open Prices same-day re-run: cached, no request, and the run line says so", async () => {
+  const ws = workspace();
+  const first = openPricesCli(ws);
+  assert.equal(await first.c.run("compare", "--week", "1"), 0);
+  const again = openPricesCli(ws);
+  assert.equal(await again.c.run("compare", "--week", "1"), 0);
+  assert.equal(again.net.calls.length, 0);
+  assert.match(
+    again.c.out.join("\n"),
+    /^ {2}open-prices: ok \(5 terms cached today, no request\)$/m,
+  );
+});
+
+test("prices stores lists the Open Prices source with its attribution", async () => {
+  const ws = workspace();
+  const { c } = openPricesCli(ws);
+  assert.equal(await c.run("stores"), 0);
+  const text = c.out.join("\n");
+  assert.match(
+    text,
+    /^open-prices\s+Open Prices \(Open Food Facts\)\s+open-prices\s+aggregator for the stores above; Open Prices data © Open Food Facts contributors, ODbL 1\.0/m,
+  );
+  assert.match(text, /^publix\s+Publix\s+manual\s+manual entry only$/m);
 });

@@ -57,7 +57,15 @@ export async function collectOffers(
         const fetchedAt = new Date(now()).toISOString();
         saveFetch(
           db,
-          { store: adapter.store, source: adapter.source, item, term, day: opts.day, fetchedAt },
+          {
+            store: adapter.store,
+            source: adapter.source,
+            item,
+            term,
+            day: opts.day,
+            fetchedAt,
+            dated: adapter.datedOffers === true,
+          },
           offers,
         );
       } catch (err) {
@@ -69,6 +77,8 @@ export async function collectOffers(
         break;
       }
     }
+    const note = adapter.note?.();
+    if (run.status === "ok" && note !== undefined) run.detail = note;
   }
   return runs;
 }

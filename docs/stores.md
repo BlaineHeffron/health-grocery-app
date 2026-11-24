@@ -39,6 +39,168 @@ fingerprints, private or app-internal endpoints, third-party scraping services.
 No chain on the list publishes an official weekly-ad feed or API; weekly ads are pages on their
 own sites under the same terms, so they are read by a person and entered manually.
 
+## Aggregator sources
+
+Sources that cover many stores. Same rules as above: official or public, logged out, allowed
+by the licence or terms and by robots.txt. **Checked 2026-11-24.**
+
+**How the research was done this time.** Every request was made with `curl` and the app's own
+generic User-Agent (`health-grocery-app/0.1 (personal grocery price comparison; honors
+robots.txt)`), and robots.txt was fetched on each host before anything else on it, research
+included. No WebFetch, no WebSearch, no logins. Requests by host (all on 2026-11-24; "+ N"
+are the reviewer's own checks, same User-Agent, robots.txt first):
+
+| Host | Requests | What |
+|---|---|---|
+| `prices.openfoodfacts.org` | 20 + 5 | robots.txt ×2; API docs ×4 (`/api/openapi.json` ×2: timeout, 404; `/api/schema/`, `/api/docs/`: timeouts); API research ×3 (all failed, see below); `/data/locations.jsonl.gz` ×1 (1,272,508 bytes); `/data/prices.jsonl.gz` HEAD ×6 and GET ×2 (the first, 15,761,230 bytes, came mid-regeneration and was truncated, so it was discarded; the second, 23,293,936 bytes, `last-modified` 23:08:44 UTC, passed `gzip -t`); the app's one real run ×2 (robots.txt and the nearby query). Reviewer: robots.txt, the locations dump, one API call (`radius_km=60`, 200), the real run on the final code ×2 (robots.txt and the nearby query) |
+| `world.openfoodfacts.org` | 2 + 2 | robots.txt; `/terms-of-use` (allowed: its `*` group disallows only `/api`, `/cgi`, `/facets`). Reviewer: the same two |
+| `wiki.openfoodfacts.org` | 1 | robots.txt only |
+| `github.com`, `raw.githubusercontent.com`, `api.github.com` | 1, 16 + 13, 3 | robots.txt on each (raw and api answer 404: no rules); the Open Prices source code and docs (README, API.md, data guide, filters, serializers, models, pagination, views, settings, export script); one repository tree listing and one lookup of the `main` commit id. Reviewer: raw robots.txt and 12 source files at that commit |
+| `flipp.com`, `www.flipp.com` | 1 + 1, 1 + 1 | robots.txt only (`www` answers 301 to `flipp.com`). Reviewer: the same |
+| `corp.flipp.com`, `corporate.flipp.com` | 4 + 2, 1 | robots.txt; `/terms-of-use/`; `/sitemap_index.xml`; `/page-sitemap.xml` (`corporate.` did not resolve). Reviewer: robots.txt and the terms |
+
+### Open Prices (Open Food Facts), prices.openfoodfacts.org
+
+- **Allowed: yes.**
+  - robots.txt: `https://prices.openfoodfacts.org/robots.txt` answers `200` with an empty body
+    (`content-length: 0`): no rules, so `/api/v1/prices` and `/data/` are allowed. (The
+    separate `world.openfoodfacts.org` host disallows `/api` for `*`; the app never calls it.)
+  - Licence: the Open Prices docs (`API.md`, `docs/guides/data.md` in the project's repository)
+    say: "Make sure you comply with the OdBL licence, mentioning the source of your data, and
+    ensuring to avoid combining non free data you can't release legally as open data." The Open
+    Food Facts terms of use (`world.openfoodfacts.org/terms-of-use`): re-users "have to mention
+    the licence and to attribute the authorship to Open Food Facts with a link to
+    https://openfoodfacts.org"; "Derivative works must be shared under the same conditions."
+  - Read access needs no account (README: "you can explore the data without an account"); only
+    writes need a token.
+  - Rate limits: none documented. The API settings define no throttling, the docs ask scripts to
+    be tested on the pre-production server first, and the API refuses pages past 500 and points
+    bulk users at the dumps. The app sends at most 1 + 5 requests per run (robots.txt, then up to
+    five 100-row pages of one nearby query), 3 s apart, through the `PoliteFetcher`.
+- **Charleston, SC coverage: none.** From the complete locations dump (8,010 locations, 406 in
+  the US): **0 locations and 0 prices within 15 mi (24.1 km)** of downtown Charleston, the
+  app's default radius. Within 60 km there are 2 locations with 1 price each, neither in range:
+  Earth Fare, Summerville (35.7 km; not a listed store) and Publix, Summerville (40.9 km).
+  South Carolina as a whole has 5 locations with 1 price each (also Publix Myrtle Beach, Food
+  Lion Rock Hill, Walmart Lancaster). Their price dates, from the prices dump: Earth Fare
+  Summerville 2024-10-30, Publix Myrtle Beach 2025-08-10, Publix Summerville 2025-08-21, Food
+  Lion Rock Hill 2026-09-02, Walmart Lancaster 2026-11-19; all five are barcode (`PRODUCT`)
+  prices. Live check: a reviewer's single call with `radius_km=60` on 2026-11-24 returned
+  `total: 2` (the two Summerville prices) in the documented envelope; the adapter, run offline
+  over that response, mapped the Publix price and dropped Earth Fare as unlisted. The app's
+  own one real run (2026-11-24 23:13 UTC, 2 requests, with code that did not yet check the
+  envelope) proves only that the nearby query got HTTP 200 with parseable JSON. A real run of
+  the final code (reviewer, 2026-11-24 23:52 UTC, 2 requests) answered `ok` with the
+  documented envelope and 0 rows within 15 mi, matching the dump.
+- **Freshness.** From the complete prices dump (regenerated daily; the copy read was
+  23,293,936 bytes, `last-modified` 2026-11-24 23:08:44 UTC, 349,620 rows), ages on
+  2026-11-24 of the 48,289 US prices: median 285 days, quartiles 110 and 389 days; 3.2% are
+  under 30 days old, 18.6% under 90, 68.9% under a year. Prices reach the database a median of
+  3 days after their date. US prices added per month, Dec 2025 to Nov 2026 (Nov partial):
+  2,576; 3,811; 2,869; 1,323; 1,844; 1,041; 2,144; 3,386; 4,062; 2,445; 7,501; 1,523. (The
+  locations dump's US `price_count` sums to 48,216; the 73 more rows in the prices dump are
+  prices counted after the locations dump was written.) With the default 30-day cutoff most
+  prices would show as stale even where coverage exists.
+- **Data shape.** Per item, crowd-sourced from receipts and shelf tags, at one OpenStreetMap
+  location each. `GET /api/v1/prices` (paged: `items`, `page`, `pages`, `size`, `total`) takes
+  `lat`, `lon`, `radius_km`, `currency`, `date__gte` and `order_by`, and nests the `product` and
+  `location` objects. Two kinds of price: `CATEGORY` (raw produce such as `en:leeks`) with
+  `price_per` `KILOGRAM`, `UNIT` or `LITER`, which gives the unit price directly; and `PRODUCT`
+  (a barcode) with `price_per` null, whose size comes only from the product's
+  `product_quantity` and `product_quantity_unit` (nested in the API; in the dump the price row
+  has only `product_id`; sizes would need the products dump). Of the 48,289 US prices, 47,768
+    are `PRODUCT` and 521 `CATEGORY` (273 per kg, 248 per unit). The rotation basket is raw
+  produce, which is what `CATEGORY` rows hold, and they are only 1.1% of US prices; barcode
+  rows count only when their product's categories name the item exactly. Decimals (price,
+  coordinates) are JSON numbers. `price_is_discounted` and `price_without_discount` give
+  promos. The dumps are daily gzipped JSONL files.
+- **Integration effort: small, and built.** One adapter file plus a dated-offer path in the
+  offer store. See "Open Prices adapter" below.
+- **Verdict: adapter built, but it has no Charleston data today** (0 locations, 0 prices within
+  15 mi). It is clearly allowed and small, so it is built and runs with the Kroger adapter; it
+  will pick up Charleston prices if contributors add them. Its mapping is verified against
+  synthetic fixtures shaped like the API serializer and against the reviewer's one live
+  response above (run offline). A real run of the final code (reviewer, 23:52 UTC, 2 requests)
+  got a valid empty page: 0 rows within 15 mi. The adapter itself has not fetched a non-empty
+  live page.
+
+**Open Prices adapter** (`src/prices/adapters/open-prices.ts`, source id `open-prices`):
+
+- One nearby query per run: `GET https://prices.openfoodfacts.org/api/v1/prices?lat=32.7765&lon=-79.9311&radius_km=<HGA_PRICE_RADIUS_MILES in km>&currency=USD&order_by=-date&size=100&page=N`,
+  at most 5 pages, after robots.txt, 3 s apart, generic User-Agent, no account. Every search
+  term is then answered from that one result in memory. The centre is downtown Charleston, the
+  default ZIP 29401; with another `HGA_PRICE_ZIP` the source reports "not configured".
+- The parameters are real filters, defined in the Open Prices source at commit `cac0dace7b3c`:
+  `lat`, `lon`, `radius_km` (applied together through `Location.objects.nearby`),
+  `currency` and `date` in `PriceFilter`
+  ([open_prices/api/prices/filters.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/prices/filters.py));
+  `order_by` is the API's `ORDERING_PARAM` with `date` among `ordering_fields`
+  ([config/settings.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/config/settings.py),
+  [open_prices/api/prices/views.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/prices/views.py));
+  the page envelope (`items`, `page`, `pages`, `size`, `total`) is in
+  [open_prices/api/pagination.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/pagination.py).
+  The adapter still checks every row's own location (US, inside the radius) and drops the
+  rest, and treats a 200 without that envelope as an error.
+- Term matching, conservative because the comparison table shows no product text: a
+  `CATEGORY` row matches a catalog search term only when its `category_tag` names exactly the
+  term (`en:collard-greens` = `collard greens`, ignoring case and a plural "s"); a `PRODUCT`
+  row only when one of its product's `categories_tags` does. Product names are never matched,
+  so a "Broccoli Cheddar Soup" is not broccoli and a yogurt named "Chocolate Covered
+  Strawberry" is not strawberries, and `en:sweet-potatoes` does not match `potatoes`. The cost:
+  terms with extra words (`broccoli crowns`, `garlic bulb`, `fennel bulb`) match nothing.
+- Store mapping: the location's `osm_brand`, else `osm_name`, is matched to a listed store
+  (Harris Teeter, Publix, Lowes Foods, Food Lion, Walmart, Aldi, Costco, Trader Joe's, Whole
+  Foods). Prices at any other location are dropped, as are prices outside the radius or the
+  US and prices without a positive USD amount or a valid past date; the run line counts each
+  group, and says "first 5 of P pages" when the page cap cut the query short.
+- Size: `CATEGORY` prices are 1 kg, 1 l or 1 each from `price_per`; `PRODUCT` prices use the
+  product quantity, and without one the offer is kept with unit `?`, so it shows under "Not
+  ranked" instead of being ranked with a guessed size.
+- Age: each offer keeps the price's own `date` as `observedOn`, so its age and the
+  `--max-age-days` cutoff use the contributor's date, not the fetch day. A refetch replaces
+  every earlier Open Prices row for that search term, whatever its store or date; for each
+  store, item and source only the latest date counts, as for every source.
+- Attribution: offers carry `source: "open-prices"`, the product text ends with
+  `(Open Prices #<price id>)`, the human output marks them `via open-prices` and prints
+  "Open Prices data © Open Food Facts contributors, ODbL 1.0 (https://prices.openfoodfacts.org)"
+  whenever one is shown, and `--json` lists the source and that notice under `sources`.
+- Share-alike: the local database is a derivative database used privately. It is not
+  committed or published; anyone who publishes it, or an export of its Open Prices rows, must
+  do so under the ODbL with the attribution above. The Kroger rows in the same table are not
+  open data and must not be published with it.
+- Errors: a 5xx or a hang ends the source for that run with an error line (no retry, no stored
+  back-off); a 429 or 403 stores a back-off as for every adapter; manual prices still compare.
+
+### Flipp (flipp.com weekly ads)
+
+- **Allowed: no.**
+  - robots.txt (`https://flipp.com/robots.txt`, 200): `User-agent: Baiduspider` / `Disallow: /`;
+    `User-agent: *` disallows `/*-*/*-*/item/45*`, `/fr-us/`, `/fr-ca/browser/`,
+    `/fr-ca/categories` and `/fr-ca/*-<province or state>/circulaires` paths. robots.txt
+    alone would allow most English pages; the terms decide it.
+  - Terms (`https://corp.flipp.com/terms-of-use/`, read 2026-11-24; `corp.flipp.com/robots.txt`
+    disallows only `/pdf/`): the "Licensed Application" is defined as "this application,
+    affiliated website, and the service performed or provided by this application"; §2.1 grants
+    a licence "for personal and non-commercial use"; §2.2 says you may not "Incorporate, merge,
+    combine or otherwise include the Application Content in any database, compilation or other
+    storage means" and may not "Download, copy, capture, scrape or otherwise obtain the
+    Application Content not otherwise expressly permitted through the Licensed Application".
+    Storing ad prices in this app's database is exactly what §2.2 excludes.
+  - No public API: the `corp.flipp.com` page sitemap lists retailer, brand and media platform
+    pages, careers, legal and events, and no developer or API program. The only machine routes
+    are the site's and apps' internal endpoints, which are excluded here.
+- **Charleston, SC coverage: not measured.** There is no permitted automated route, so no
+  Flipp page or data was requested (only the robots.txt, terms and sitemap requests above).
+- **Freshness:** weekly ads, by their nature current for one ad week; not measured.
+- **Data shape:** ad-only (circular items and sale prices), not a full shelf; unit price only
+  where an ad states one.
+- **Integration effort:** not applicable; it would need internal endpoints.
+- **Verdict: not built.** The terms bar storing or scraping the content and there is no
+  public API. Weekly-ad prices stay manual (`hga prices add` / `import`).
+
 ## Revisit when
 - Kroger credentials exist: run one small live compare and record the request count.
 - A store publishes an official API or feed, or its terms change to allow automated reads.
+- Open Prices: run one live compare once its API answers again, and recheck Charleston
+  coverage (`hga prices compare` reports the Open Prices offers and the dropped counts).
+- Flipp: a public API or terms that allow automated use.

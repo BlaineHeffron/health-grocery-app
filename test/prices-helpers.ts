@@ -62,3 +62,17 @@ export function krogerRoutes(overrides: Record<string, Route> = {}): Record<stri
     ...overrides,
   };
 }
+
+/** Synthetic Open Prices API bodies (shaped like GET /api/v1/prices, PriceFullSerializer). */
+export function openPricesFixture(name: string): string {
+  return readFileSync(new URL(`../../test/fixtures/open-prices/${name}`, import.meta.url), "utf8");
+}
+
+/** Open Prices routes over the fixture; robots.txt answers 200 with an empty body (no rules). */
+export function openPricesRoutes(overrides: Record<string, Route> = {}): Record<string, Route> {
+  return {
+    "/robots.txt": () => ({ body: "" }),
+    "/api/v1/prices": () => ({ body: openPricesFixture("prices-nearby.json") }),
+    ...overrides,
+  };
+}

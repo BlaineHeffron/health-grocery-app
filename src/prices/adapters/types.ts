@@ -12,10 +12,12 @@ export interface Offer {
   size: number;
   unit: string;
   promo: boolean;
-  /** "kroger-api" for adapter data, "manual" for entered or imported prices. */
+  /** "kroger-api" or "open-prices" for adapter data, "manual" for entered or imported prices. */
   source: string;
   /** ISO timestamp the price was fetched or observed. */
   fetchedAt: string;
+  /** YYYY-MM-DD the price was observed, when the source dates it (default: the fetch day). */
+  observedOn?: string;
 }
 
 export interface SearchLocation {
@@ -27,9 +29,17 @@ export type AdapterStatus = { configured: true } | { configured: false; reason: 
 
 /** One automated store source. Stores without an allowed source have no adapter (manual). */
 export interface StoreAdapter {
+  /** The listed store id, or the source id for an aggregator whose offers name their stores. */
   readonly store: string;
   readonly source: string;
+  /**
+   * True when offers carry their own `observedOn`: a refetch then replaces every earlier row
+   * of (source, term), whatever its day or store.
+   */
+  readonly datedOffers?: boolean;
   status(): AdapterStatus;
+  /** Optional summary of this run (e.g. dropped prices), shown with the run status. */
+  note?(): string | undefined;
   /** Offers for `term` at the store near `location`. Every request goes through the fetcher. */
   search(term: string, location: SearchLocation): Promise<Offer[]>;
 }

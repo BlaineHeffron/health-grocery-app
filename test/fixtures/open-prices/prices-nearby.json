@@ -1,0 +1,243 @@
+{
+  "items": [
+    {
+      "id": 9001,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": 4.4,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": "2026-11-20",
+      "product": null,
+      "location": {
+        "osm_name": "Publix",
+        "osm_brand": "Publix",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.802,
+        "osm_lon": -79.88
+      }
+    },
+    {
+      "id": 9002,
+      "type": "PRODUCT",
+      "product_code": "0000000000017",
+      "product_name": null,
+      "category_tag": null,
+      "price": 2.99,
+      "price_is_discounted": true,
+      "price_without_discount": 3.49,
+      "price_per": null,
+      "currency": "USD",
+      "date": "2026-11-22",
+      "product": {
+        "product_name": "Example Organic Leeks",
+        "product_quantity": 454,
+        "product_quantity_unit": "g",
+        "categories_tags": ["en:plant-based-foods", "en:vegetables", "en:leeks"]
+      },
+      "location": {
+        "osm_name": "Harris Teeter",
+        "osm_brand": "Harris Teeter",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.79,
+        "osm_lon": -79.94
+      }
+    },
+    {
+      "id": 9003,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:collard-greens",
+      "price": 1.5,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "UNIT",
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": null,
+      "location": {
+        "osm_name": "Example Corner Market",
+        "osm_brand": null,
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.77,
+        "osm_lon": -79.95
+      }
+    },
+    {
+      "id": 9004,
+      "type": "PRODUCT",
+      "product_code": "0000000000024",
+      "product_name": null,
+      "category_tag": null,
+      "price": 2.19,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": null,
+      "currency": "USD",
+      "date": "2026-11-21",
+      "product": {
+        "product_name": "Example Collard Greens",
+        "product_quantity": null,
+        "product_quantity_unit": null,
+        "categories_tags": ["en:plant-based-foods", "en:vegetables", "en:collard-greens"]
+      },
+      "location": {
+        "osm_name": "Food Lion",
+        "osm_brand": "Food Lion",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.85,
+        "osm_lon": -79.98
+      }
+    },
+    {
+      "id": 9005,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": 2.0,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "EUR",
+      "date": "2026-11-20",
+      "product": null,
+      "location": {
+        "osm_name": "Aldi",
+        "osm_brand": "Aldi",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.78,
+        "osm_lon": -79.93
+      }
+    },
+    {
+      "id": 9006,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:turnip-greens",
+      "price": 1.25,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "UNIT",
+      "currency": "USD",
+      "date": "2025-06-01",
+      "product": null,
+      "location": {
+        "osm_name": "Lowes Foods",
+        "osm_brand": "Lowes Foods",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.76,
+        "osm_lon": -80.01
+      }
+    },
+    {
+      "id": 9007,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": 3.0,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": null,
+      "product": null,
+      "location": {
+        "osm_name": "Aldi",
+        "osm_brand": "Aldi",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.78,
+        "osm_lon": -79.93
+      }
+    },
+    {
+      "id": 9008,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": 0.5,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": null,
+      "location": {
+        "osm_name": "Publix",
+        "osm_brand": "Publix",
+        "osm_address_city": "Example Far City",
+        "osm_address_country_code": "US",
+        "osm_lat": 27.95,
+        "osm_lon": -82.46
+      }
+    },
+    {
+      "id": 9009,
+      "type": "PRODUCT",
+      "product_code": "0000000000031",
+      "product_name": null,
+      "category_tag": null,
+      "price": 1.0,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": null,
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": {
+        "product_name": "Example Leek and Potato Soup",
+        "categories_tags": ["en:meals", "en:soups", "en:leek-soups"],
+        "product_quantity": 425,
+        "product_quantity_unit": "g"
+      },
+      "location": {
+        "osm_name": "Aldi",
+        "osm_brand": "Aldi",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.79,
+        "osm_lon": -79.92
+      }
+    },
+    {
+      "id": 9010,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": 0,
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": null,
+      "location": {
+        "osm_name": "Publix",
+        "osm_brand": "Publix",
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": 32.802,
+        "osm_lon": -79.88
+      }
+    }
+  ],
+  "page": 1,
+  "pages": 1,
+  "size": 100,
+  "total": 10
+}

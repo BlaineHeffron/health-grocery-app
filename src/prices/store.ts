@@ -58,7 +58,12 @@ export function wasFetched(db: DatabaseSync, store: string, term: string, day: s
   );
 }
 
-/** Replaces the day's adapter offers for (store, term) and records the fetch, atomically. */
+/**
+ * Records an adapter fetch for (store, term) atomically. Undated offers replace the day's rows
+ * of (store, term, source) and are stored as observed today. Dated offers (`dated`, an
+ * aggregator) replace every earlier row of (source, term), whatever its store or day, and keep
+ * their own `observedOn`, so a price removed at the source disappears here too.
+ */
 export function saveFetch(
   db: DatabaseSync,
   args: {
@@ -68,15 +73,26 @@ export function saveFetch(
     term: string;
     day: string;
     fetchedAt: string;
+    dated?: boolean;
   },
   offers: readonly Offer[],
 ): void {
   db.exec("BEGIN");
   try {
-    db.prepare(
-      "DELETE FROM price_offers WHERE store = ? AND term = ? AND observed_on = ? AND source = ?",
-    ).run(args.store, args.term, args.day, args.source);
-    for (const o of offers) insertOffer(db, { ...o, item: args.item, observedOn: args.day });
+    if (args.dated) {
+      db.prepare("DELETE FROM price_offers WHERE term = ? AND source = ?").run(
+        args.term,
+        args.source,
+      );
+    } else {
+      db.prepare(
+        "DELETE FROM price_offers WHERE store = ? AND term = ? AND observed_on = ? AND source = ?",
+      ).run(args.store, args.term, args.day, args.source);
+    }
+    for (const o of offers) {
+      const observedOn = args.dated ? (o.observedOn ?? args.day) : args.day;
+      insertOffer(db, { ...o, item: args.item, observedOn });
+    }
     db.prepare(
       `INSERT INTO price_fetches (store, term, day, fetched_at) VALUES (?, ?, ?, ?)
        ON CONFLICT (store, term, day) DO UPDATE SET fetched_at = excluded.fetched_at`,
