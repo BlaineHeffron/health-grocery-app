@@ -1,0 +1,93 @@
+# Price catalog: maps every entry in data/rotation.yaml to concrete search terms and a
+# comparison unit (lb, oz, kg, g, each, bunch). Generic food data only.
+#
+# Forms:
+#   <entry>: { unit: lb, terms: [..] }       one item, named like the entry
+#   <entry>:
+#     pick: any                              alternatives: the cheapest represents the entry
+#     unit: bunch                            (alternatives share one unit so they compare)
+#     items: { <name>: [terms..], ... }
+#   <entry>:
+#     pick: all                              every part is needed: each is its own basket line
+#     items: { <name>: { unit: lb, terms: [..] }, ... }
+#
+# `hga prices add --item` accepts an entry name or an item name.
+entries:
+  # week 1
+  leeks: { unit: lb, terms: [leeks] }
+  carrots: { unit: lb, terms: [carrots] }
+  chard: { unit: bunch, terms: [swiss chard, rainbow chard] }
+  mushrooms: { unit: lb, terms: [white mushrooms, baby bella mushrooms] }
+  # week 2
+  collards or turnip greens:
+    pick: any
+    unit: bunch
+    items:
+      collards: [collard greens]
+      turnip greens: [turnip greens]
+  fennel: { unit: each, terms: [fennel bulb] }
+  radicchio or endive:
+    pick: any
+    unit: lb
+    items:
+      radicchio: [radicchio]
+      endive: [belgian endive]
+  "sweet potato (cooked then chilled)": { unit: lb, terms: [sweet potatoes] }
+  # week 3
+  "Jerusalem artichoke (small portion)": { unit: lb, terms: [sunchokes, jerusalem artichokes] }
+  red cabbage or sauerkraut:
+    pick: any
+    unit: lb
+    items:
+      red cabbage: [red cabbage]
+      sauerkraut: [sauerkraut]
+  celery root or parsnip:
+    pick: any
+    unit: lb
+    items:
+      celery root: [celery root, celeriac]
+      parsnip: [parsnips]
+  spinach: { unit: oz, terms: [spinach] }
+  # week 4
+  beets with greens: { unit: bunch, terms: [beets with greens, bunch beets] }
+  bok choy: { unit: lb, terms: [bok choy, baby bok choy] }
+  shallots and garlic:
+    pick: all
+    items:
+      shallots: { unit: lb, terms: [shallots] }
+      garlic: { unit: each, terms: [garlic bulb] }
+  "potato (cooked then chilled)": { unit: lb, terms: [russet potatoes, yellow potatoes] }
+  a new mushroom:
+    pick: any
+    unit: lb
+    items:
+      shiitake: [shiitake mushrooms]
+      oyster mushroom: [oyster mushrooms]
+      maitake: [maitake mushrooms]
+  # every week
+  broccoli: { unit: lb, terms: [broccoli crowns, broccoli] }
+  winter squash:
+    pick: any
+    unit: lb
+    items:
+      butternut squash: [butternut squash]
+      acorn squash: [acorn squash]
+      spaghetti squash: [spaghetti squash]
+  okra or zucchini:
+    pick: any
+    unit: lb
+    items:
+      okra: [okra]
+      zucchini: [zucchini]
+  lettuce and arugula:
+    pick: all
+    items:
+      lettuce: { unit: each, terms: [romaine lettuce, green leaf lettuce] }
+      arugula: { unit: oz, terms: [arugula] }
+  a legume:
+    pick: any
+    unit: lb
+    items:
+      lentils: [dry lentils]
+      black beans: [dry black beans, canned black beans]
+      chickpeas: [dry chickpeas, canned chickpeas]

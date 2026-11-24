@@ -12,10 +12,12 @@ FROM node:22-slim
 ENV NODE_ENV=production \
     HGA_DB_PATH=/data/hga.db
 WORKDIR /app
-# No runtime dependencies; package.json is kept for "type": "module".
-COPY package.json ./
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist/src ./dist/src
 COPY migrations ./migrations
+# Generic food data read at runtime (rotation and price catalog); never the db.
+COPY data/*.yaml ./data/
 # The named volume mounts here; pre-create it so the volume is owned by the node user.
 RUN mkdir -p /data && chown node:node /data
 USER node

@@ -10,6 +10,10 @@ export const CONFIG_KEYS = [
   "KROGER_CLIENT_ID",
   "KROGER_CLIENT_SECRET",
   "HGA_DB_PATH",
+  "HGA_PRICE_ZIP",
+  "HGA_PRICE_RADIUS_MILES",
+  "HGA_PRICE_MAX_AGE_DAYS",
+  "HGA_PRICE_MIN_INTERVAL_SECONDS",
 ] as const;
 
 export type ConfigKey = (typeof CONFIG_KEYS)[number];

@@ -1,0 +1,53 @@
+{
+  "data": [
+    {
+      "productId": "0000000000001",
+      "upc": "0000000000001",
+      "brand": "Example Farms",
+      "description": "Leeks",
+      "items": [
+        {
+          "itemId": "0000000000001",
+          "price": { "regular": 2.49, "promo": 1.99 },
+          "size": "1 lb",
+          "soldBy": "WEIGHT"
+        }
+      ]
+    },
+    {
+      "productId": "0000000000002",
+      "upc": "0000000000002",
+      "brand": "Example Kitchen",
+      "description": "Leek Soup",
+      "items": [
+        {
+          "itemId": "0000000000002",
+          "price": { "regular": 3.29, "promo": 0 },
+          "size": "16 fl oz",
+          "soldBy": "UNIT"
+        }
+      ]
+    },
+    {
+      "productId": "0000000000003",
+      "upc": "0000000000003",
+      "brand": "Example Farms",
+      "description": "Baby Leeks",
+      "items": [
+        {
+          "itemId": "0000000000003",
+          "price": { "regular": 3.0, "promo": 0 },
+          "size": "12 oz",
+          "soldBy": "UNIT"
+        }
+      ]
+    },
+    {
+      "productId": "0000000000004",
+      "upc": "0000000000004",
+      "description": "Leeks, Organic (not stocked at this store)",
+      "items": [{ "itemId": "0000000000004", "size": "1 lb", "soldBy": "WEIGHT" }]
+    }
+  ],
+  "meta": { "pagination": { "start": 0, "limit": 10, "total": 4 } }
+}
