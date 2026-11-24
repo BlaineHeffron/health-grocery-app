@@ -44,10 +44,10 @@ function write(dir: string, path: string, content: string): void {
   writeFileSync(join(dir, path), content);
 }
 
-function commit(dir: string, files: Record<string, string>): void {
+function commit(dir: string, files: Record<string, string>, message = "change"): void {
   for (const [path, content] of Object.entries(files)) write(dir, path, content);
   git(dir, "add", "-f", ".");
-  git(dir, "commit", "-q", "-m", "change");
+  git(dir, "commit", "-q", "-m", message);
 }
 
 function check(cwd: string, env: Record<string, string> = {}) {
@@ -151,6 +151,51 @@ test("fails on a secret added then removed within the outgoing range", () => {
   const r = check(dir);
   assert.equal(r.status, 1, r.output);
   assert.match(r.output, /KITCHENOWL_TOKEN value in env\.txt/);
+});
+
+test("fails on a secret that exists only in a merge conflict resolution", () => {
+  const dir = repo();
+  commit(dir, { "f.txt": "feat side\n" });
+  git(dir, "checkout", "-q", "-b", "side", "main");
+  commit(dir, { "f.txt": "other side\n" });
+  git(dir, "checkout", "-q", "feat");
+  const merge = spawnSync("git", ["merge", "-q", "side"], { cwd: dir, env: gitEnv });
+  assert.notEqual(merge.status, 0, "expected a merge conflict");
+  write(dir, "f.txt", j("KITCHENOWL_", "TOKEN=resolved\n"));
+  git(dir, "add", "f.txt");
+  git(dir, "commit", "-q", "--no-edit");
+  const r = check(dir);
+  assert.equal(r.status, 1, r.output);
+  assert.match(r.output, /KITCHENOWL_TOKEN value in f\.txt/);
+});
+
+test("fails on an added line that itself starts with '++ '", () => {
+  const dir = repo();
+  commit(dir, { "plus.txt": j("++ KITCHENOWL_", "TOKEN=abc\n") });
+  const r = check(dir);
+  assert.equal(r.status, 1, r.output);
+  assert.match(r.output, /KITCHENOWL_TOKEN value in plus\.txt/);
+});
+
+test("fails on secrets or tailnet hosts in an outgoing commit message", () => {
+  const dir = repo();
+  commit(
+    dir,
+    { "clean.txt": "clean\n" },
+    j("deploy to box.example-tail.", "ts.net\n\nKITCHENOWL_", "TOKEN=abc"),
+  );
+  const r = check(dir);
+  assert.equal(r.status, 1, r.output);
+  assert.match(r.output, /tailnet hostname in commit message [0-9a-f]+/);
+  assert.match(r.output, /KITCHENOWL_TOKEN value in commit message [0-9a-f]+/);
+});
+
+test("scans files git treats as binary", () => {
+  const dir = repo();
+  commit(dir, { "blob.bin": j("\u0000\n", "KITCHENOWL_", "TOKEN=abc\n") });
+  const r = check(dir);
+  assert.equal(r.status, 1, r.output);
+  assert.match(r.output, /KITCHENOWL_TOKEN value in blob\.bin/);
 });
 
 test("fails on staged-but-uncommitted secrets", () => {

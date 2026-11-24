@@ -57,15 +57,23 @@ while IFS= read -r p; do
   fi
 done <<<"$paths"
 
-# ---- Content rules: lines added by outgoing commits and by the staged diff. ----
-# Each line is prefixed "file:" so findings name the file, never the value.
+# ---- Content rules: lines added by outgoing commits (merge resolutions included via
+# --remerge-diff), by the staged diff, and the outgoing commit messages. ----
+# Each line is prefixed "<where>:" so findings name the file or commit, never the value.
+# A "+++ " line is a file header only between "diff --git" and the first "@@" hunk.
 added="$(
   {
-    git log --format= -p --no-color --no-ext-diff --unified=0 "${base}..HEAD"
-    git diff --cached -p --no-color --no-ext-diff --unified=0
+    git log --format= -p --remerge-diff --text --no-color --no-ext-diff --unified=0 "${base}..HEAD"
+    git diff --cached -p --text --no-color --no-ext-diff --unified=0
   } | awk '
-    /^\+\+\+ / { f = substr($0, 5); sub(/^b\//, "", f); next }
-    /^\+/      { print f ":" substr($0, 2) }
+    /^diff --git / { header = 1; next }
+    header && /^\+\+\+ / { f = substr($0, 5); sub(/^"?b\//, "", f); sub(/"$/, "", f); next }
+    /^@@/          { header = 0; next }
+    !header && /^\+/ { print f ":" substr($0, 2) }
+  '
+  git log --format='prepush-check-commit %h%n%B' "${base}..HEAD" | awk '
+    /^prepush-check-commit / { c = "commit message " $2; next }
+    { print c ":" $0 }
   '
 )"
 

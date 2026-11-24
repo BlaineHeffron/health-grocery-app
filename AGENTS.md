@@ -27,7 +27,10 @@ This repo is **public**. Read README.md (privacy rules) and PLAN.md first.
 
 ## Before every push
 Run `scripts/prepush-check.sh` (base `origin/main`, override with `PREPUSH_BASE`) and push only
-when it prints OK. It is deliberately not a git hook: run it yourself, every time.
+when it prints OK. It is deliberately not a git hook: run it yourself, every time. It scans
+added lines (merge resolutions included), commit messages, and tracked paths, and fails closed:
+on a false positive (e.g. prose like "Bearer" followed by a long word, or a literal
+assignment to a token variable), rephrase the code or text. Never weaken the script.
 
 ## Git and PRs
 - Branch from `origin/main`; open PRs to `main`.
