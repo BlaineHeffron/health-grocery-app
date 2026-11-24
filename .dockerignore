@@ -1,0 +1,8 @@
+.env
+.git
+.agent_bus
+.cadre
+node_modules
+dist
+coverage
+data/*.db*

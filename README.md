@@ -14,3 +14,6 @@ See `PLAN.md` for the architecture, phases and open questions.
 - The rotation content is generic food-family data, with no personal data.
 - Secrets (the KitchenOwl API token, any price API keys) live in an untracked `.env` and are never committed or printed.
 - It runs on Dueno and is reachable only over the tailnet, never exposed publicly.
+
+## Development
+See `AGENTS.md` for setup, checks and repo rules.

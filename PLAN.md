@@ -35,3 +35,6 @@ Phone (GrapheneOS, tailnet) ──> KitchenOwl web/app (:8449)          recipes,
 6. Should the rotation also generate recipe suggestions from KitchenOwl recipes that use that week's vegetables?
 7. Logging UX: phone-first web app is enough, or a KitchenOwl-native feel?
 8. USDA FoodData Central API key (free) is OK to request? Only generic food names are sent.
+
+## Development
+See `AGENTS.md` for setup, checks and repo rules.

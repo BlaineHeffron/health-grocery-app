@@ -1,4 +1,9 @@
 .env
 node_modules/
+dist/
+coverage/
+.nyc_output/
 data/*.db
+data/*.db*
 *.log
+.agent_bus/
