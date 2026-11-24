@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import type { Config } from "../config.js";
 import { MIGRATIONS_DIR, migrate, openDb } from "../db.js";
-import { createAdapters, STORES } from "../prices/adapters/registry.js";
+import { createAdapters, SOURCES, STORES } from "../prices/adapters/registry.js";
 import type { StoreAdapter } from "../prices/adapters/types.js";
 import { basketLines, CATALOG_FILE, checkCoverage, loadCatalog } from "../prices/catalog.js";
 import { type AdapterRun, collectOffers } from "../prices/collect.js";
@@ -26,9 +26,11 @@ const usage = `Usage: hga prices <subcommand>
   import <file.csv>
       Import manual prices; columns: store,item,price,size,unit[,date,promo,product].
   stores
-      List stores, their source (api or manual) and whether each adapter is configured.
+      List stores and aggregator sources, their source (api or manual) and whether each
+      adapter is configured.
 
 Stores: ${STORES.map((s) => s.id).join(", ")}
+Aggregator sources (prices for the stores above): ${SOURCES.map((s) => s.id).join(", ")}
 Config (optional): HGA_PRICE_ZIP (default 29401), HGA_PRICE_RADIUS_MILES (15),
   HGA_PRICE_MAX_AGE_DAYS (30), HGA_PRICE_MIN_INTERVAL_SECONDS (3, never lower),
   KROGER_CLIENT_ID and KROGER_CLIENT_SECRET for Harris Teeter. See docs/prices.md.`;
@@ -58,7 +60,8 @@ function describe(o: PricedOffer | null, line: { alternatives: string[]; unit: s
   if (o === null) return "-";
   const alt = line.alternatives.length > 1 ? ` (${o.item})` : "";
   const promo = o.promo ? " promo" : "";
-  return `${money(o.unitPrice)}/${line.unit} ${o.store}${alt}${promo}, ${o.ageDays} d`;
+  const via = SOURCES.some((s) => s.id === o.source) ? ` via ${o.source}` : "";
+  return `${money(o.unitPrice)}/${line.unit} ${o.store}${alt}${promo}${via}, ${o.ageDays} d`;
 }
 
 function table(rows: string[][]): string[] {
@@ -86,8 +89,8 @@ export function renderHuman(
       `  ${run.store}: ${run.status.replace("-", " ")}${run.detail ? ` (${run.detail})` : ""}${counts}`,
     );
   }
-  for (const s of STORES) {
-    if (s.kind === "api" && !meta.runs.some((r) => r.store === s.id)) {
+  for (const s of [...STORES.filter((x) => x.kind === "api"), ...SOURCES]) {
+    if (!meta.runs.some((r) => r.store === s.id)) {
       out.push(`  ${s.id}: offline (stored prices only)`);
     }
   }
@@ -110,7 +113,7 @@ export function renderHuman(
   const excluded = result.lines.flatMap((l) =>
     l.excluded.map(
       (e) =>
-        `  ${l.line}: ${e.store} ${e.product}, ${money(e.price)} for ${e.size} ${e.unit}, ${e.ageDays} d: ${e.reason}`,
+        `  ${l.line}: ${e.store} ${e.product}, ${money(e.price)} for ${e.size} ${e.unit}, ${e.ageDays} d (${e.source}): ${e.reason}`,
     ),
   );
   if (excluded.length > 0) out.push("", "Not ranked:", ...excluded);
@@ -133,6 +136,10 @@ export function renderHuman(
     if (split.missing.length > 0) out.push(`  no price for: ${split.missing.join(", ")}`);
   }
   out.push("Totals add one comparison unit of each item.");
+  const used = new Set(
+    result.lines.flatMap((l) => [...l.byStore, ...l.excluded].map((o) => o.source)),
+  );
+  for (const s of SOURCES) if (used.has(s.id)) out.push(s.attribution);
   return out;
 }
 
@@ -190,15 +197,16 @@ export function createPricesCommand(deps: PricesDeps = {}): Command {
     const today = localDay(now());
     return withDb(ctx, async (db) => {
       let runs: AdapterRun[] = [];
+      /** The real fetcher of this run, so its request count can be reported. */
+      let fetcher: PoliteFetcher | undefined;
       if (!values.offline) {
+        if (deps.adapters === undefined) {
+          fetcher = new PoliteFetcher({
+            minIntervalMs: numberSetting(config, "HGA_PRICE_MIN_INTERVAL_SECONDS", 3) * 1000,
+          });
+        }
         const adapters =
-          deps.adapters?.(config) ??
-          createAdapters(
-            config,
-            new PoliteFetcher({
-              minIntervalMs: numberSetting(config, "HGA_PRICE_MIN_INTERVAL_SECONDS", 3) * 1000,
-            }),
-          );
+          fetcher === undefined ? (deps.adapters?.(config) ?? []) : createAdapters(config, fetcher);
         runs = await collectOffers(db, adapters, lines, {
           day: today,
           location: {
@@ -234,6 +242,17 @@ export function createPricesCommand(deps: PricesDeps = {}): Command {
                   ...(run?.detail ? { detail: run.detail } : {}),
                 };
               }),
+              sources: SOURCES.map((s) => {
+                const run = runs.find((r) => r.store === s.id);
+                return {
+                  id: s.id,
+                  name: s.name,
+                  kind: s.kind,
+                  status: run?.status ?? "offline",
+                  ...(run?.detail ? { detail: run.detail } : {}),
+                  attribution: s.attribution,
+                };
+              }),
               ...result,
             },
             null,
@@ -242,6 +261,9 @@ export function createPricesCommand(deps: PricesDeps = {}): Command {
         );
       } else {
         for (const line of renderHuman(result, { scope, today, maxAgeDays, runs })) ctx.out(line);
+        if (fetcher !== undefined) {
+          ctx.out(`Network requests this run: ${fetcher.requestCount} (robots.txt included)`);
+        }
       }
       return 0;
     });
@@ -312,6 +334,17 @@ export function createPricesCommand(deps: PricesDeps = {}): Command {
         typeof status === "string" ? status : status.configured ? "configured" : status.reason;
       return [s.id, s.name, a?.source ?? "manual", text];
     });
+    for (const s of SOURCES) {
+      const a = adapters.find((x) => x.store === s.id);
+      const status = a?.status();
+      const text =
+        status === undefined
+          ? "no adapter"
+          : status.configured
+            ? `aggregator for the stores above; ${s.attribution}`
+            : status.reason;
+      rows.push([s.id, s.name, a?.source ?? "-", text]);
+    }
     for (const line of table([["Store", "Name", "Source", "Status"], ...rows])) ctx.out(line);
     return 0;
   }

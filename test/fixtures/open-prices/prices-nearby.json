@@ -1,0 +1,149 @@
+{
+  "items": [
+    {
+      "id": 9001,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": "4.40",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": "2026-11-20",
+      "product": null,
+      "location": {
+        "osm_name": "Publix",
+        "osm_brand": "Publix",
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9002,
+      "type": "PRODUCT",
+      "product_code": "0000000000017",
+      "product_name": null,
+      "category_tag": null,
+      "price": "2.99",
+      "price_is_discounted": true,
+      "price_without_discount": "3.49",
+      "price_per": null,
+      "currency": "USD",
+      "date": "2026-11-22",
+      "product": {
+        "product_name": "Example Organic Leeks",
+        "product_quantity": 454,
+        "product_quantity_unit": "g"
+      },
+      "location": {
+        "osm_name": "Harris Teeter",
+        "osm_brand": "Harris Teeter",
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9003,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:collard-greens",
+      "price": "1.50",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "UNIT",
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": null,
+      "location": {
+        "osm_name": "Example Corner Market",
+        "osm_brand": null,
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9004,
+      "type": "PRODUCT",
+      "product_code": "0000000000024",
+      "product_name": null,
+      "category_tag": null,
+      "price": "2.19",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": null,
+      "currency": "USD",
+      "date": "2026-11-21",
+      "product": {
+        "product_name": "Example Collard Greens",
+        "product_quantity": null,
+        "product_quantity_unit": null
+      },
+      "location": {
+        "osm_name": "Food Lion",
+        "osm_brand": "Food Lion",
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9005,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": "2.00",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "EUR",
+      "date": "2026-11-20",
+      "product": null,
+      "location": {
+        "osm_name": "Aldi",
+        "osm_brand": "Aldi",
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9006,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:turnip-greens",
+      "price": "1.25",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "UNIT",
+      "currency": "USD",
+      "date": "2025-06-01",
+      "product": null,
+      "location": {
+        "osm_name": "Lowes Foods",
+        "osm_brand": "Lowes Foods",
+        "osm_address_city": "Example City"
+      }
+    },
+    {
+      "id": 9007,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": "3.00",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": null,
+      "product": null,
+      "location": {
+        "osm_name": "Aldi",
+        "osm_brand": "Aldi",
+        "osm_address_city": "Example City"
+      }
+    }
+  ],
+  "page": 1,
+  "pages": 1,
+  "size": 100,
+  "total": 7
+}

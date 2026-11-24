@@ -1,6 +1,7 @@
 import type { Config } from "../../config.js";
 import type { PoliteFetcher } from "../fetcher.js";
 import { KrogerAdapter } from "./kroger.js";
+import { OPEN_PRICES_ATTRIBUTION, OpenPricesAdapter } from "./open-prices.js";
 import type { StoreAdapter } from "./types.js";
 
 export interface StoreInfo {
@@ -23,6 +24,24 @@ export const STORES: readonly StoreInfo[] = [
   { id: "whole-foods", name: "Whole Foods Market", kind: "manual" },
 ];
 
+/** Sources that cover many stores; their offers name a listed store. See docs/stores.md. */
+export interface SourceInfo {
+  id: string;
+  name: string;
+  kind: "aggregator";
+  /** Licence notice shown with any of its prices (required by the source's licence). */
+  attribution: string;
+}
+
+export const SOURCES: readonly SourceInfo[] = [
+  {
+    id: "open-prices",
+    name: "Open Prices (Open Food Facts)",
+    kind: "aggregator",
+    attribution: OPEN_PRICES_ATTRIBUTION,
+  },
+];
+
 export function storeById(id: string): StoreInfo {
   const store = STORES.find((s) => s.id === id);
   if (store === undefined) {
@@ -31,11 +50,14 @@ export function storeById(id: string): StoreInfo {
   return store;
 }
 
-/** Builds the adapters for every `api` store from config (credentials stay in memory). */
+/**
+ * Builds the adapters for every `api` store and every aggregator source from config
+ * (credentials stay in memory).
+ */
 export function createAdapters(config: Config, fetcher: PoliteFetcher): StoreAdapter[] {
   const clientId = config.optional("KROGER_CLIENT_ID");
   const clientSecret = config.optional("KROGER_CLIENT_SECRET");
   const credentials =
     clientId !== undefined && clientSecret !== undefined ? { clientId, clientSecret } : undefined;
-  return [new KrogerAdapter(fetcher, credentials)];
+  return [new KrogerAdapter(fetcher, credentials), new OpenPricesAdapter(fetcher)];
 }

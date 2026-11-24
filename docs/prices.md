@@ -2,7 +2,9 @@
 
 Compares Charleston, SC grocery prices for the rotation items. Stores and their sources:
 `docs/stores.md`. Harris Teeter comes from the Kroger API (`docs/kroger-signup.md`); every other
-store is manual entry.
+store is manual entry. The aggregator source Open Prices (`open-prices`, crowd-sourced, ODbL)
+adds prices for any listed store; it has no Charleston data today (see "Aggregator sources" in
+`docs/stores.md`).
 
 ```
 hga prices compare [--week N | --all] [--json] [--refresh] [--offline] [--max-age-days N]
@@ -12,7 +14,7 @@ hga prices stores
 ```
 
 Store ids: `harris-teeter`, `publix`, `lowes-foods`, `food-lion`, `walmart`, `aldi`, `costco`,
-`trader-joes`, `whole-foods`.
+`trader-joes`, `whole-foods`. Source ids: `open-prices`. `hga prices stores` lists both.
 
 ## Catalog
 `data/price-catalog.yaml` maps every `data/rotation.yaml` entry (all weeks plus `every_week`) to
@@ -32,11 +34,14 @@ Offers are converted to the line's unit: weights (lb, oz, kg, g), counts (`each`
 ## Freshness and cache
 - Adapter results are stored per store, search term and day. A same-day re-run reads them from
   SQLite and makes no network calls; `--refresh` refetches today's; `--offline` skips adapters.
+- A run that uses the network ends its human output with `Network requests this run: N
+  (robots.txt included)`.
 - A 429/403 stops the adapter at once (no retries) and is stored with the end of its back-off
   (`Retry-After`, else 15 min, doubling within a run). Every later run skips that store until
   then, whatever the week and with `--refresh` too.
-- For each store and item, only the most recent day's prices count (a newer receipt supersedes
-  an older one). Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
+- For each store, item and source, only the most recent day's prices count (a newer receipt
+  supersedes an older one). Kroger prices are dated by the fetch day; Open Prices prices keep
+  the contributor's own date, and a refetch replaces all of that source's rows for the term. Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
   shown as stale and not ranked. Every price shows its age in days.
 
 ## Manual entry and CSV import
@@ -83,6 +88,11 @@ Keys appear in this order; new optional keys may be added without a schema bump.
       "status": "ok | not-configured | error | offline", "detail": "..." },   // detail optional
     { "id": "publix", "name": "Publix", "kind": "manual", "status": "manual" }
   ],
+  "sources": [                                     // aggregators: their offers name a store
+    { "id": "open-prices", "name": "Open Prices (Open Food Facts)", "kind": "aggregator",
+      "status": "ok | error | offline", "detail": "...",                       // detail optional
+      "attribution": "Open Prices data © Open Food Facts contributors, ODbL 1.0 (...)" }
+  ],
   "lines": [{
     "line": "collards or turnip greens",          // "entry / item" for pick: all parts
     "entry": "collards or turnip greens",
@@ -108,8 +118,11 @@ Keys appear in this order; new optional keys may be added without a schema bump.
 ```
 
 `Offer`: `store`, `item`, `product`, `price` (paid; promo price when `promo`), `regularPrice`
-(only when `promo`), `size`, `unit`, `promo`, `source` (`kroger-api` or `manual`), `observedOn`
-(`YYYY-MM-DD`), `ageDays`, `unitPrice` (per line unit, 4 decimals). Totals have 2 decimals.
+(only when `promo`), `size`, `unit`, `promo`, `source` (`kroger-api`, `open-prices` or
+`manual`), `observedOn` (`YYYY-MM-DD`), `ageDays`, `unitPrice` (per line unit, 4 decimals).
+Totals have 2 decimals. Human output marks aggregator offers `via <source>`, names the source
+of each unranked offer, and prints the source's attribution notice when any of its prices is
+shown.
 
 ## Settings (`.env`, all optional)
 `HGA_PRICE_ZIP` (29401), `HGA_PRICE_RADIUS_MILES` (15), `HGA_PRICE_MAX_AGE_DAYS` (30),
