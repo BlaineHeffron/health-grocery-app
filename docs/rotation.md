@@ -30,8 +30,10 @@ v0.8.1.
 | `hga rotation push --dry-run` | Prints what would be added or skipped. Reads the list; writes nothing anywhere. |
 | `hga rotation clear [--dry-run]` | Removes items this job added that still carry its mark. |
 
-- **Names** go to the list exactly as written in the yaml (`collards or turnip greens` is one
-  item).
+- **Names:** the job sends each name as written in the yaml (`collards or turnip greens` is one
+  item). KitchenOwl reuses an existing household catalog item whose name matches ignoring case,
+  so an entry can appear with the catalog's capitalisation (`carrots` shows as `Carrots`). The
+  skip rule and `clear` compare names ignoring case, so this does not affect the job.
 - **Skip rule:** an item already on the list, compared ignoring case and surrounding or repeated
   whitespace, is skipped and left exactly as it is. Running `push` twice for the same week adds
   nothing the second time.
@@ -62,7 +64,9 @@ succeeded and no `--week` was given, in the same transaction that marks the push
 fails (auth, timeout, server error), the push stops, is logged as `failed` with the items added
 so far, the pointer stays, and the command exits 1. Running `push` again converges: the items
 already added are skipped, the rest are added, and `clear` still finds the earlier ones through
-the log. `--dry-run` and `show` open the db read-only and never create it.
+the log. `--dry-run` and `show` open the db read-only and never create or migrate it. On an
+existing db, SQLite's read-only open may leave `hga.db-wal` / `hga.db-shm` side files next to it;
+the db file itself is not changed.
 
 Requests time out after 15 s. Errors name the method, API path and HTTP status, never the token
 or the URL.
@@ -72,9 +76,19 @@ or the URL.
 `deploy/systemd/` has a user service and timer. **They are not installed.** The schedule,
 Saturday 08:00 local, is a placeholder: the day and time are Blaine's decision. To enable later:
 
-1. Edit `WorkingDirectory=` in `hga-rotation-push.service` to point at the checkout that holds
-   `.env` and `docker-compose.yml`, and `OnCalendar=` in the timer to the chosen time.
-2. Check with `npm run hga -- rotation push --dry-run` (or the compose equivalent) first.
+1. Choose how the service runs `hga` (an open decision, below), then edit `WorkingDirectory=`
+   (and for option B `ExecStart=`) in `hga-rotation-push.service`, and `OnCalendar=` in the
+   timer.
+   - **A. Docker Compose** (the shipped `ExecStart`, `docker compose run --rm hga rotation push`):
+     the container runs on the compose bridge network, so `KITCHENOWL_URL` must be reachable
+     from inside the container. A URL on the host's loopback (`127.0.0.1`) is the container's
+     own loopback and is refused. Host networking is not allowed (AGENTS.md).
+   - **B. On the host:** run `npm ci && npm run build` in the checkout and set
+     `ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning dist/src/bin.js rotation push`.
+     `KITCHENOWL_URL` is then resolved on the host, so a loopback URL works.
+2. Dry-run exactly the way the timer will run, from the checkout. For option A:
+   `docker compose run --rm hga rotation push --dry-run`. For option B:
+   `npm run hga -- rotation push --dry-run`. It must print the plan with no error.
 3. Install for your user (no sudo):
    ```sh
    mkdir -p ~/.config/systemd/user
@@ -85,6 +99,13 @@ Saturday 08:00 local, is a placeholder: the day and time are Blaine's decision. 
    ```
    To keep the timer running while logged out, user lingering must be on for the account.
 4. Logs: `journalctl --user -u hga-rotation-push.service`.
+
+## Open decisions (Blaine)
+
+- Target household and shopping list (`KITCHENOWL_HOUSEHOLD_ID`, `KITCHENOWL_LIST_ID`).
+- Timer day and time (placeholder: Saturday 08:00 local).
+- How the timer runs `hga`: Docker Compose (option A, needs a `KITCHENOWL_URL` reachable from
+  the container) or on the host (option B). See "Enabling the weekly timer".
 
 ## Integration test
 

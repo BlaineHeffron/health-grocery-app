@@ -47,7 +47,7 @@ export class RotationState {
 
   /** Opens read-only; never creates, migrates or writes the db file (for show and --dry-run). */
   static openReadOnly(dbPath: string): RotationState {
-    if (dbPath === ":memory:" || !existsSync(dbPath)) return new RotationState(undefined, false);
+    if (!existsSync(dbPath)) return new RotationState(undefined, false);
     const db = new DatabaseSync(dbPath, { readOnly: true });
     const has = db
       .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'rotation_state'")

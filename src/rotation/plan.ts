@@ -115,12 +115,7 @@ export function nextWeek(week: number, count: number): number {
  * week's entries, then the every-week staples, with seasonal entries kept only in season.
  * Names are as written in the yaml; duplicates (by matchKey) keep the first.
  */
-export function itemsForWeek(
-  rotation: Rotation,
-  week: number,
-  month: number,
-  seasonalMonths: readonly number[] = rotation.seasonalMonths,
-): string[] {
+export function itemsForWeek(rotation: Rotation, week: number, month: number): string[] {
   const entries = rotation.weeks[week - 1];
   if (!Number.isInteger(week) || entries === undefined) {
     throw new Error(`rotation week must be 1-${rotation.weeks.length}, got ${week}`);
@@ -128,7 +123,7 @@ export function itemsForWeek(
   const seen = new Set<string>();
   const items: string[] = [];
   for (const e of [...entries, ...rotation.everyWeek]) {
-    if (e.seasonal && !seasonalMonths.includes(month)) continue;
+    if (e.seasonal && !rotation.seasonalMonths.includes(month)) continue;
     const key = matchKey(e.name);
     if (seen.has(key)) continue;
     seen.add(key);

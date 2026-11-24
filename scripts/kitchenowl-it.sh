@@ -12,9 +12,10 @@ volume=hga-kitchenowl-test-data
 port="${HGA_IT_PORT:-18849}"
 image=tombursch/kitchenowl:v0.8.1
 
+# Digits only, no leading zero (docker reads 08450 as 8450), then the real KitchenOwl ports.
 case "$port" in
+  "" | *[!0-9]* | 0*) echo "refusing: HGA_IT_PORT must be a port number without leading zeros" >&2; exit 2 ;;
   8449 | 8450) echo "refusing: port $port is the real KitchenOwl" >&2; exit 2 ;;
-  *[!0-9]* | "") echo "refusing: HGA_IT_PORT must be a number" >&2; exit 2 ;;
 esac
 if docker ps -a --format '{{.Names}}' | grep -qx "$name"; then
   echo "refusing: container $name already exists (someone else's run?)" >&2
