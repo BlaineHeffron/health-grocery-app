@@ -11,3 +11,7 @@ every_week:
     seasonal: true   # in season only
   - lettuce and arugula
   - a legume
+# Months (1-12) when `seasonal: true` items go on the list. Ranges like "4-10", lists like
+# "5,6,7", or wrapping ranges like "11-2". Default if omitted: 4-10 (Charleston, SC: zucchini
+# from about April, okra through October). Edit to override.
+seasonal_months: "4-10"

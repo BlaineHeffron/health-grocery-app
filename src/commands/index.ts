@@ -8,4 +8,5 @@ import type { CommandEntry } from "./types.js";
 export const commands: readonly CommandEntry[] = [
   { name: "db", summary: "Database tasks (migrate)", load: async () => (await import("./db.js")).dbCommand },
   { name: "prices", summary: "Grocery price comparison (compare, add, import, stores)", load: async () => (await import("./prices.js")).pricesCommand },
+  { name: "rotation", summary: "Weekly rotation push to KitchenOwl (show, push, clear)", load: async () => (await import("./rotation.js")).rotationCommand },
 ];

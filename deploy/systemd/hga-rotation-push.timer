@@ -1,0 +1,13 @@
+# Weekly trigger for hga-rotation-push.service. NOT installed or enabled by this repo.
+# The day and time below are a PLACEHOLDER (Saturday 08:00 local): Blaine's decision.
+[Unit]
+Description=health-grocery-app: weekly rotation push (timer)
+
+[Timer]
+OnCalendar=Sat *-*-* 08:00:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=hga-rotation-push.service
+
+[Install]
+WantedBy=timers.target

@@ -17,7 +17,8 @@
     "lint": "biome check .",
     "check": "npm run typecheck && npm run lint",
     "test": "npm run build && node --test --disable-warning=ExperimentalWarning \"dist/test/**/*.test.js\"",
-    "hga": "node --disable-warning=ExperimentalWarning dist/src/bin.js"
+    "hga": "node --disable-warning=ExperimentalWarning dist/src/bin.js",
+    "it:kitchenowl": "npm run build && scripts/kitchenowl-it.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.9",
@@ -25,6 +26,6 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
-    "yaml": "^2.9.1"
+    "yaml": "2.9.1"
   }
 }
