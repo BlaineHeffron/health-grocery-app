@@ -487,7 +487,9 @@ test("Open Prices offers join the comparison with their store, source, own date 
       name: "Open Prices (Open Food Facts)",
       kind: "aggregator",
       status: "ok",
-      detail: "dropped 1 at unlisted stores, 2 without USD price or date",
+      detail:
+        "1 nearby query (1 page): 8 rows, 4 matched a search term at a listed store; " +
+        "dropped 1 out of range, 1 at unlisted stores, 2 without USD price or date",
       attribution:
         "Open Prices data © Open Food Facts contributors, ODbL 1.0 (https://prices.openfoodfacts.org)",
     },
@@ -571,7 +573,7 @@ test("Open Prices 504: a per-source error, no stored back-off, manual prices sti
   const text = c.out.join("\n");
   assert.match(
     text,
-    /^ {2}open-prices: error \(Open Prices prices: HTTP 504\) \(1 fetched, 0 cached\)$/m,
+    /^ {2}open-prices: error \(Open Prices prices: HTTP 504\) \(1 searched, 0 cached\)$/m,
   );
   assert.match(text, /Split basket: \$7\.79 across aldi, publix/);
   assert.doesNotMatch(text, /ODbL/);

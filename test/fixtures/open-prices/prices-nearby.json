@@ -16,7 +16,10 @@
       "location": {
         "osm_name": "Publix",
         "osm_brand": "Publix",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.8020000",
+        "osm_lon": "-79.8800000"
       }
     },
     {
@@ -39,7 +42,10 @@
       "location": {
         "osm_name": "Harris Teeter",
         "osm_brand": "Harris Teeter",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.7900000",
+        "osm_lon": "-79.9400000"
       }
     },
     {
@@ -58,7 +64,10 @@
       "location": {
         "osm_name": "Example Corner Market",
         "osm_brand": null,
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.7700000",
+        "osm_lon": "-79.9500000"
       }
     },
     {
@@ -81,7 +90,10 @@
       "location": {
         "osm_name": "Food Lion",
         "osm_brand": "Food Lion",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.8500000",
+        "osm_lon": "-79.9800000"
       }
     },
     {
@@ -100,7 +112,10 @@
       "location": {
         "osm_name": "Aldi",
         "osm_brand": "Aldi",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.7800000",
+        "osm_lon": "-79.9300000"
       }
     },
     {
@@ -119,7 +134,10 @@
       "location": {
         "osm_name": "Lowes Foods",
         "osm_brand": "Lowes Foods",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.7600000",
+        "osm_lon": "-80.0100000"
       }
     },
     {
@@ -138,12 +156,37 @@
       "location": {
         "osm_name": "Aldi",
         "osm_brand": "Aldi",
-        "osm_address_city": "Example City"
+        "osm_address_city": "Example City",
+        "osm_address_country_code": "US",
+        "osm_lat": "32.7800000",
+        "osm_lon": "-79.9300000"
+      }
+    },
+    {
+      "id": 9008,
+      "type": "CATEGORY",
+      "product_code": null,
+      "product_name": null,
+      "category_tag": "en:leeks",
+      "price": "0.50",
+      "price_is_discounted": false,
+      "price_without_discount": null,
+      "price_per": "KILOGRAM",
+      "currency": "USD",
+      "date": "2026-11-23",
+      "product": null,
+      "location": {
+        "osm_name": "Publix",
+        "osm_brand": "Publix",
+        "osm_address_city": "Example Far City",
+        "osm_address_country_code": "US",
+        "osm_lat": "27.9500000",
+        "osm_lon": "-82.4600000"
       }
     }
   ],
   "page": 1,
   "pages": 1,
   "size": 100,
-  "total": 7
+  "total": 8
 }

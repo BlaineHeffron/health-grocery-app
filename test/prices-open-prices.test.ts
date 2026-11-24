@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadConfig } from "../src/config.js";
 import {
+  distanceKm,
   matchesTerm,
   OpenPricesAdapter,
   storeForLocation,
@@ -75,9 +76,14 @@ test("prices map to listed stores with their own date, size and promo", async ()
     collards.map((o) => [o.store, o.size, o.unit]),
     [["food-lion", 1, "?"]],
   );
-  // EUR (9005) and undated (9007) leeks are dropped, each id counted once across terms.
+  // 9008 is a Publix far outside the radius (a filter the server ignored must not leak it);
+  // EUR (9005) and undated (9007) leeks are dropped; ids count once across terms.
   await adapter.search("leeks", near);
-  assert.equal(adapter.note(), "dropped 1 at unlisted stores, 2 without USD price or date");
+  assert.equal(
+    adapter.note(),
+    "1 nearby query (1 page): 8 rows, 3 matched a search term at a listed store; " +
+      "dropped 1 out of range, 1 at unlisted stores, 2 without USD price or date",
+  );
 });
 
 test("one nearby fetch serves every term in a run; pages are spaced by the fetcher", async () => {
@@ -92,7 +98,13 @@ test("one nearby fetch serves every term in a run; pages are spaced by the fetch
           price_per: "KILOGRAM",
           currency: "USD",
           date: "2026-11-20",
-          location: { osm_brand: "Aldi", osm_name: "Aldi" },
+          location: {
+            osm_brand: "Aldi",
+            osm_name: "Aldi",
+            osm_address_country_code: "US",
+            osm_lat: "32.78",
+            osm_lon: "-79.93",
+          },
         },
       ],
       page: n,
@@ -117,7 +129,7 @@ test("one nearby fetch serves every term in a run; pages are spaced by the fetch
   assert.ok(clock.sleeps.every((ms) => ms <= 3000));
 });
 
-test("empty coverage: no prices nearby gives no offers and no note", async () => {
+test("empty coverage: no prices nearby gives no offers, and the note says so", async () => {
   const { adapter } = setup(
     openPricesRoutes({
       "/api/v1/prices": () => ({
@@ -126,7 +138,11 @@ test("empty coverage: no prices nearby gives no offers and no note", async () =>
     }),
   );
   assert.deepEqual(await adapter.search("leeks", near), []);
-  assert.equal(adapter.note(), undefined);
+  assert.equal(
+    adapter.note(),
+    "1 nearby query (1 page): 0 rows, 0 matched a search term at a listed store; " +
+      "dropped 0 out of range, 0 at unlisted stores, 0 without USD price or date",
+  );
 });
 
 test("a 504 is an error without back-off; a 429 backs off; robots.txt is obeyed", async () => {
@@ -177,4 +193,84 @@ test("the registry builds the Open Prices adapter and lists it as a source", () 
     [["open-prices", "aggregator"]],
   );
   assert.match(SOURCES[0]?.attribution ?? "", /Open Food Facts contributors, ODbL/);
+});
+
+test("each row's own location is checked: outside the radius or outside the US is dropped", async () => {
+  const row = (id: number, lat: string, lon: string, country: string | null) => ({
+    id,
+    type: "CATEGORY",
+    category_tag: "en:leeks",
+    price: "0.10",
+    price_per: "KILOGRAM",
+    currency: "USD",
+    date: "2026-11-20",
+    location: {
+      osm_brand: "Publix",
+      osm_name: "Publix",
+      osm_address_country_code: country,
+      osm_lat: lat,
+      osm_lon: lon,
+    },
+  });
+  // As if the server ignored the geo filter and sent prices from anywhere.
+  const items = [
+    row(1, "27.95", "-82.46", "US"), // Florida
+    row(2, "32.78", "-79.93", "CA"), // right place, wrong country code
+    row(3, "32.78", "-79.93", null),
+    { ...row(4, "0", "0", "US"), location: { osm_brand: "Publix", osm_name: "Publix" } },
+    row(5, "32.90", "-79.93", "US"), // 13.8 km north: inside 15 mi
+  ];
+  const { adapter } = setup(
+    openPricesRoutes({
+      "/api/v1/prices": () => ({ body: JSON.stringify({ items, page: 1, pages: 1, total: 5 }) }),
+    }),
+  );
+  const offers = await adapter.search("leeks", near);
+  assert.deepEqual(
+    offers.map((o) => o.product),
+    ["en:leeks @ Publix (Open Prices #5)"],
+  );
+  assert.match(adapter.note() ?? "", /dropped 4 out of range/);
+  assert.ok(
+    Math.abs(distanceKm({ lat: 32.78, lon: -79.93 }, { lat: 32.9, lon: -79.93 }) - 13.3) < 0.1,
+  );
+});
+
+test("a 200 that is not the documented page envelope is a source error, not zero offers", async () => {
+  for (const body of [
+    "[]",
+    "{}",
+    '{"items":[],"pages":1}',
+    '{"items":{},"pages":1,"total":0}',
+    '{"items":[null],"pages":1,"total":1}',
+    "<html>",
+  ]) {
+    const { adapter } = setup(openPricesRoutes({ "/api/v1/prices": () => ({ body }) }));
+    await assert.rejects(
+      adapter.search("leeks", near),
+      /Open Prices prices: (unexpected response shape|response is not JSON)/,
+      body,
+    );
+  }
+});
+
+test("a ZIP other than the default the centre stands for: not configured, no request", async () => {
+  const clock = fakeClock();
+  const net = fakeFetch(openPricesRoutes(), clock.now);
+  const fetcher = new PoliteFetcher({ fetchImpl: net.impl, now: clock.now, sleep: clock.sleep });
+  const other = new OpenPricesAdapter(fetcher, "29464", clock.now);
+  assert.deepEqual(other.status(), {
+    configured: false,
+    reason:
+      "searches around downtown Charleston (ZIP 29401) only; HGA_PRICE_ZIP is set to another ZIP",
+  });
+  assert.deepEqual(new OpenPricesAdapter(fetcher, "29401", clock.now).status(), {
+    configured: true,
+  });
+  const viaConfig = createAdapters(loadConfig({ env: { HGA_PRICE_ZIP: "29464" } }), fetcher).find(
+    (a) => a.store === "open-prices",
+  );
+  assert.equal(viaConfig?.status().configured, false);
+  await assert.rejects(other.search("leeks", { zip: "29464", radiusMiles: 15 }), /ZIP 29401 only/);
+  assert.equal(net.calls.length, 0);
 });

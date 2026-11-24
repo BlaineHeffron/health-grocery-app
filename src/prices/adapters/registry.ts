@@ -59,5 +59,8 @@ export function createAdapters(config: Config, fetcher: PoliteFetcher): StoreAda
   const clientSecret = config.optional("KROGER_CLIENT_SECRET");
   const credentials =
     clientId !== undefined && clientSecret !== undefined ? { clientId, clientSecret } : undefined;
-  return [new KrogerAdapter(fetcher, credentials), new OpenPricesAdapter(fetcher)];
+  return [
+    new KrogerAdapter(fetcher, credentials),
+    new OpenPricesAdapter(fetcher, config.optional("HGA_PRICE_ZIP")),
+  ];
 }

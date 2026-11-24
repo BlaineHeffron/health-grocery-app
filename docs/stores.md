@@ -51,10 +51,10 @@ included. No WebFetch, no WebSearch, no logins. Requests by host (all on 2026-11
 
 | Host | Requests | What |
 |---|---|---|
-| `prices.openfoodfacts.org` | REQ_OP | robots.txt ×2; API docs ×4 (`/api/openapi.json` ×2: timeout, 404; `/api/schema/`, `/api/docs/`: timeouts); API ×3 (all failed, see below); `/data/locations.jsonl.gz` ×1 (1,272,508 bytes); `/data/prices.jsonl.gz` DUMP_LINE |
+| `prices.openfoodfacts.org` | 20 | robots.txt ×2; API docs ×4 (`/api/openapi.json` ×2: timeout, 404; `/api/schema/`, `/api/docs/`: timeouts); API research ×3 (all failed, see below); `/data/locations.jsonl.gz` ×1 (1,272,508 bytes); `/data/prices.jsonl.gz` HEAD ×6 and GET ×2 (the first, 15,761,230 bytes, came mid-regeneration and was truncated, so it was discarded; the second, 23,293,936 bytes, `last-modified` 23:08:44 UTC, passed `gzip -t`); the app's one real run ×2 (robots.txt and the nearby query) |
 | `world.openfoodfacts.org` | 2 | robots.txt; `/terms-of-use` (allowed: its `*` group disallows only `/api`, `/cgi`, `/facets`) |
 | `wiki.openfoodfacts.org` | 1 | robots.txt only |
-| `github.com`, `raw.githubusercontent.com`, `api.github.com` | 1, 15, 2 | robots.txt on each (raw and api answer 404: no rules); the Open Prices source code and docs (README, API.md, data guide, filters, serializers, models, pagination, views, settings, export script) and one repository tree listing |
+| `github.com`, `raw.githubusercontent.com`, `api.github.com` | 1, 16, 3 | robots.txt on each (raw and api answer 404: no rules); the Open Prices source code and docs (README, API.md, data guide, filters, serializers, models, pagination, views, settings, export script); one repository tree listing and one lookup of the `main` commit id |
 | `flipp.com`, `www.flipp.com` | 1, 1 | robots.txt only (`www` answers 301 to `flipp.com`) |
 | `corp.flipp.com`, `corporate.flipp.com` | 4, 1 | robots.txt; `/terms-of-use/`; `/sitemap_index.xml`; `/page-sitemap.xml` (`corporate.` did not resolve) |
 
@@ -81,8 +81,20 @@ included. No WebFetch, no WebSearch, no logins. Requests by host (all on 2026-11
   app's default radius. Within 60 km there are 2 locations with 1 price each, neither in range:
   Earth Fare, Summerville (35.7 km; not a listed store) and Publix, Summerville (40.9 km).
   South Carolina as a whole has 5 locations with 1 price each (also Publix Myrtle Beach, Food
-  Lion Rock Hill, Walmart Lancaster). SC_DATES
-- **Freshness.** FRESHNESS
+  Lion Rock Hill, Walmart Lancaster). Their price dates, from the prices dump: Earth Fare
+  Summerville 2024-10-30, Publix Myrtle Beach 2025-08-10, Publix Summerville 2025-08-21, Food
+  Lion Rock Hill 2026-09-02, Walmart Lancaster 2026-11-19; all five are barcode (`PRODUCT`)
+  prices. The live API agreed: the app's one real run (2026-11-24 23:13 UTC, 2 requests)
+  answered `ok` and produced no offers.
+- **Freshness.** From the complete prices dump (regenerated daily; the copy read was
+  23,293,936 bytes, `last-modified` 2026-11-24 23:08:44 UTC, 349,620 rows), ages on
+  2026-11-24 of the 48,289 US prices: median 285 days, quartiles 110 and 389 days; 3.2% are
+  under 30 days old, 18.6% under 90, 68.9% under a year. Prices reach the database a median of
+  3 days after their date. US prices added per month, Dec 2025 to Nov 2026 (Nov partial):
+  2,576; 3,811; 2,869; 1,323; 1,844; 1,041; 2,144; 3,386; 4,062; 2,445; 7,501; 1,523. (The
+  locations dump's US `price_count` sums to 48,216; the 73 more rows in the prices dump are
+  prices counted after the locations dump was written.) With the default 30-day cutoff most
+  prices would show as stale even where coverage exists.
 - **Data shape.** Per item, crowd-sourced from receipts and shelf tags, at one OpenStreetMap
   location each. `GET /api/v1/prices` (paged: `items`, `page`, `pages`, `size`, `total`) takes
   `lat`, `lon`, `radius_km`, `currency`, `date__gte` and `order_by`, and nests the `product` and
@@ -90,29 +102,41 @@ included. No WebFetch, no WebSearch, no logins. Requests by host (all on 2026-11
   `price_per` `KILOGRAM`, `UNIT` or `LITER`, which gives the unit price directly; and `PRODUCT`
   (a barcode) with `price_per` null, whose size comes only from the product's
   `product_quantity` and `product_quantity_unit` (nested in the API; in the dump the price row
-  has only `product_id`). TYPE_MIX `price_is_discounted` and `price_without_discount` give
+  has only `product_id`; sizes would need the products dump). Of the 48,289 US prices, 47,768
+  are `PRODUCT` and 521 `CATEGORY` (273 per kg, 248 per unit). `price_is_discounted` and `price_without_discount` give
   promos. The dumps are daily gzipped JSONL files.
 - **Integration effort: small, and built.** One adapter file plus a dated-offer path in the
   offer store. See "Open Prices adapter" below.
 - **Verdict: adapter built, but it has no Charleston data today** (0 locations, 0 prices within
   15 mi). It is clearly allowed and small, so it is built and runs with the Kroger adapter; it
-  will pick up Charleston prices if contributors add them. It was **not** tested against the
-  live API: the API answered every attempt on 2026-11-24 with a 504 or a timeout (see the PR
-  for the one real run).
+  will pick up Charleston prices if contributors add them. Its mapping is verified against
+  synthetic fixtures shaped like the API serializer only: the research calls to the API all
+  failed (504 or timeout) and the one real run returned no rows in range.
 
 **Open Prices adapter** (`src/prices/adapters/open-prices.ts`, source id `open-prices`):
 
 - One nearby query per run: `GET https://prices.openfoodfacts.org/api/v1/prices?lat=32.7765&lon=-79.9311&radius_km=<HGA_PRICE_RADIUS_MILES in km>&currency=USD&order_by=-date&size=100&page=N`,
-  at most 5 pages, after robots.txt, 3 s apart, generic User-Agent, no account. The centre is a
-  fixed public coordinate for downtown Charleston (the store list is Charleston-only). Every
-  search term is then answered from that one result in memory.
+  at most 5 pages, after robots.txt, 3 s apart, generic User-Agent, no account. Every search
+  term is then answered from that one result in memory. The centre is downtown Charleston, the
+  default ZIP 29401; with another `HGA_PRICE_ZIP` the source reports "not configured".
+- The parameters are real filters, defined in the Open Prices source at commit `cac0dace7b3c`:
+  `lat`, `lon`, `radius_km` (applied together through `Location.objects.nearby`),
+  `currency` and `date` in `PriceFilter`
+  ([open_prices/api/prices/filters.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/prices/filters.py));
+  `order_by` is the API's `ORDERING_PARAM` with `date` among `ordering_fields`
+  ([config/settings.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/config/settings.py),
+  [open_prices/api/prices/views.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/prices/views.py));
+  the page envelope (`items`, `page`, `pages`, `size`, `total`) is in
+  [open_prices/api/pagination.py](https://github.com/openfoodfacts/open-prices/blob/cac0dace7b3c1097a679ca45b1552a0f8545c0ab/open_prices/api/pagination.py).
+  The adapter still checks every row's own location (US, inside the radius) and drops the
+  rest, and treats a 200 without that envelope as an error.
 - Term matching: a price matches a catalog search term when the term's words appear, in order,
   in its category tag (`en:collard-greens`) or product name, ignoring case and a plural "s".
   `garlic bulb` does not match `en:garlic`; strict on purpose.
 - Store mapping: the location's `osm_brand`, else `osm_name`, is matched to a listed store
   (Harris Teeter, Publix, Lowes Foods, Food Lion, Walmart, Aldi, Costco, Trader Joe's, Whole
-  Foods). Prices at any other location are dropped and counted ("dropped N at unlisted
-  stores"), as are prices without a USD amount or a valid past date.
+  Foods). Prices at any other location are dropped, as are prices outside the radius or the
+  US and prices without a USD amount or a valid past date; the run line counts each group.
 - Size: `CATEGORY` prices are 1 kg, 1 l or 1 each from `price_per`; `PRODUCT` prices use the
   product quantity, and without one the offer is kept with unit `?`, so it shows under "Not
   ranked" instead of being ranked with a guessed size.

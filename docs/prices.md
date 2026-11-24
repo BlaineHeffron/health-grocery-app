@@ -44,6 +44,35 @@ Offers are converted to the line's unit: weights (lb, oz, kg, g), counts (`each`
   the contributor's own date, and a refetch replaces all of that source's rows for the term. Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
   shown as stale and not ranked. Every price shows its age in days.
 
+## Open Prices (aggregator source `open-prices`)
+Crowd-sourced prices from Open Prices (Open Food Facts), read logged out from its public API.
+Why it qualifies, and its Charleston coverage (none today): `docs/stores.md`.
+
+- **One query per run:** robots.txt, then `GET /api/v1/prices` with `lat`/`lon` of downtown
+  Charleston (32.7765, -79.9311: the coordinate stands for the default ZIP 29401),
+  `radius_km` = `HGA_PRICE_RADIUS_MILES` in km, `currency=USD`, `order_by=-date`, 100 rows a
+  page, at most 5 pages. Every search term is answered from that result. If `HGA_PRICE_ZIP` is
+  set to another ZIP the source reports "not configured" and sends nothing (there is no
+  geocoder).
+- **Rows are checked again locally:** a row counts only if its own location is in the US and
+  inside the radius, its brand or name maps to a listed store, and it has a USD price and a
+  past date. A 200 response that is not the documented page (`items` array, numeric `pages` and
+  `total`) is a source error, not "no prices".
+- **Run line:** `open-prices: ok (1 nearby query (N pages): R rows, M matched a search term at a
+  listed store; dropped A out of range, B at unlisted stores, C without USD price or date)`.
+  On an error it shows the error and how many terms were searched.
+- **Age:** each offer keeps the price's own date as `observedOn`; `ageDays` and
+  `--max-age-days` use it. A refetch replaces every stored Open Prices row of that search term,
+  whatever its store or date, so prices removed at the source disappear.
+- **Attribution (ODbL):** offers have `source: "open-prices"` and a product text ending
+  `(Open Prices #<price id>)`; human output marks them `via open-prices` and, whenever one is
+  shown, prints `Open Prices data © Open Food Facts contributors, ODbL 1.0
+  (https://prices.openfoodfacts.org)`; `--json` carries the same notice in `sources`.
+- **Share-alike:** the local SQLite database becomes a derivative database of Open Prices under
+  the ODbL. It stays local and untracked; nothing derived from Open Prices is published from
+  this repo. Anyone who publishes the database, or an export of its Open Prices rows, must do so
+  under the ODbL with the attribution above.
+
 ## Manual entry and CSV import
 `add` stores one price with source `manual`; `--date` is the receipt or shelf date (default
 today). `import` reads a CSV with a header row:

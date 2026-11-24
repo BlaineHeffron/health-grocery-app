@@ -83,8 +83,12 @@ export function renderHuman(
     `Prices for ${meta.scope} on ${meta.today} (prices older than ${meta.maxAgeDays} d are excluded)`,
   );
   for (const run of meta.runs) {
+    // An aggregator answers every term from one query; its note says what that query did.
+    const aggregator = SOURCES.some((s) => s.id === run.store);
     const counts =
-      run.status === "not-configured" ? "" : ` (${run.fetched} fetched, ${run.cached} cached)`;
+      run.status === "not-configured" || (aggregator && run.status === "ok")
+        ? ""
+        : ` (${run.fetched} ${aggregator ? "searched" : "fetched"}, ${run.cached} cached)`;
     out.push(
       `  ${run.store}: ${run.status.replace("-", " ")}${run.detail ? ` (${run.detail})` : ""}${counts}`,
     );
