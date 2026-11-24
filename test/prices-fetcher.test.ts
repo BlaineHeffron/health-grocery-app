@@ -127,3 +127,30 @@ test("refuses plain http", async () => {
   const { fetcher } = setup({});
   await assert.rejects(fetcher.request("http://f.example/p"), /non-https/);
 });
+
+test("robots.txt: an empty user-agent is not ours, and the token must match exactly", () => {
+  const token = "health-grocery-app";
+  const empty = parseRobots("User-agent:\nAllow: /\n\nUser-agent: *\nDisallow: /search\n", token);
+  assert.equal(empty.isAllowed("/search?q=x"), false);
+  const prefix = parseRobots("User-agent: he\nAllow: /\n\nUser-agent: *\nDisallow: /\n", token);
+  assert.equal(prefix.isAllowed("/search"), false);
+  const exact = parseRobots(
+    "User-agent: Health-Grocery-App\nDisallow: /x\n\nUser-agent: *\nDisallow: /\n",
+    token,
+  );
+  assert.equal(exact.isAllowed("/search"), true);
+  assert.equal(exact.isAllowed("/x"), false);
+});
+
+test("robots.txt: only allow/disallow lines end a group's user-agent list", () => {
+  const r = parseRobots(
+    "User-agent: *\nSitemap: https://a.example/s.xml\nUser-agent: foo\nDisallow: /\n",
+    "health-grocery-app",
+  );
+  assert.equal(r.isAllowed("/search"), false);
+  const crawl = parseRobots(
+    "User-agent: foo\nCrawl-delay: 5\nUser-agent: *\nDisallow: /p\n",
+    "health-grocery-app",
+  );
+  assert.equal(crawl.isAllowed("/p"), false);
+});

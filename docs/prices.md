@@ -32,7 +32,9 @@ Offers are converted to the line's unit: weights (lb, oz, kg, g), counts (`each`
 ## Freshness and cache
 - Adapter results are stored per store, search term and day. A same-day re-run reads them from
   SQLite and makes no network calls; `--refresh` refetches today's; `--offline` skips adapters.
-- A 429/403 is recorded for the day and the adapter stops for that day (no retries).
+- A 429/403 stops the adapter at once (no retries) and is stored with the end of its back-off
+  (`Retry-After`, else 15 min, doubling within a run). Every later run skips that store until
+  then, whatever the week and with `--refresh` too.
 - For each store and item, only the most recent day's prices count (a newer receipt supersedes
   an older one). Prices older than `--max-age-days` (default `HGA_PRICE_MAX_AGE_DAYS`, 30) are
   shown as stale and not ranked. Every price shows its age in days.

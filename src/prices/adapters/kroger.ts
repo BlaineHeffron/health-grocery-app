@@ -12,7 +12,8 @@ import type { AdapterStatus, Offer, SearchLocation, StoreAdapter } from "./types
 export const KROGER_API = "https://api.kroger.com/v1";
 export const KROGER_SCOPE = "product.compact";
 const TOKEN_MARGIN_MS = 60_000;
-const HARRIS_TEETER = /harris\s*teeter/i;
+/** Matches the chain by name, or by "HART", a chain code reported (unverified) for Harris Teeter. */
+const HARRIS_TEETER = /harris\s*teeter|^hart$/i;
 
 export interface KrogerCredentials {
   clientId: string;

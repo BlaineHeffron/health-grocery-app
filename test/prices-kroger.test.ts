@@ -101,3 +101,16 @@ test("without credentials the adapter reports not configured and makes no reques
   });
   assert.equal(net.calls.length, 0);
 });
+
+test("a location with chain code HART counts as Harris Teeter", async () => {
+  const { net, adapter } = setup(
+    krogerRoutes({
+      "/v1/locations": () => ({
+        body: JSON.stringify({ data: [{ locationId: "7", chain: "HART", name: "Store 7" }] }),
+      }),
+    }),
+  );
+  await adapter.search("leeks", near);
+  const prod = net.calls.find((c) => c.url.includes("/v1/products"));
+  assert.equal(new URL(prod?.url ?? "").searchParams.get("filter.locationId"), "7");
+});

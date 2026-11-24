@@ -17,14 +17,20 @@ CREATE TABLE price_offers (
 );
 CREATE INDEX price_offers_store_item ON price_offers (store, item, observed_on);
 
--- One row per adapter search per day: a same-day re-run reads price_offers instead of the
--- network unless --refresh. status 'ok' or 'backoff' (the host answered 429/403).
+-- One row per successful adapter search per day: a same-day re-run reads price_offers instead
+-- of the network unless --refresh.
 CREATE TABLE price_fetches (
   store TEXT NOT NULL,
   term TEXT NOT NULL,
   day TEXT NOT NULL,
   fetched_at TEXT NOT NULL,
-  status TEXT NOT NULL,
-  detail TEXT,
   PRIMARY KEY (store, term, day)
+);
+
+-- A store's source answered 429/403: no run sends it anything before until_ms (epoch ms),
+-- whatever the terms or flags.
+CREATE TABLE price_backoffs (
+  store TEXT PRIMARY KEY,
+  until_ms INTEGER NOT NULL,
+  detail TEXT NOT NULL
 );

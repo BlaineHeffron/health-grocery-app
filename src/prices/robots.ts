@@ -29,14 +29,16 @@ function matches(pattern: string, path: string): boolean {
 }
 
 /**
- * Parses robots.txt for the given product token (e.g. "health-grocery-app"): the group whose
- * user-agent names the token applies, otherwise the "*" group, otherwise everything is allowed.
+ * Parses robots.txt for the given product token (e.g. "health-grocery-app"): the groups whose
+ * user-agent equals the token (case-insensitive) apply, otherwise the "*" groups, otherwise
+ * everything is allowed. A group's agent list ends only at its first allow/disallow line, so
+ * other lines (Sitemap, Crawl-delay) between user-agent lines keep them in one group.
  * The longest matching rule wins; Allow wins a tie.
  */
 export function parseRobots(text: string, token: string): Robots {
   const groups: { agents: string[]; rules: Rule[] }[] = [];
   let current: { agents: string[]; rules: Rule[] } | undefined;
-  let lastWasAgent = false;
+  let inRules = false;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.replace(/#.*$/, "").trim();
     const m = /^([A-Za-z-]+)\s*:\s*(.*)$/.exec(line);
@@ -44,21 +46,21 @@ export function parseRobots(text: string, token: string): Robots {
     const key = m[1].toLowerCase();
     const value = (m[2] ?? "").trim();
     if (key === "user-agent") {
-      if (!lastWasAgent || current === undefined) {
+      if (current === undefined || inRules) {
         current = { agents: [], rules: [] };
         groups.push(current);
+        inRules = false;
       }
-      current.agents.push(value.toLowerCase());
-      lastWasAgent = true;
-      continue;
-    }
-    lastWasAgent = false;
-    if (current !== undefined && (key === "allow" || key === "disallow") && value !== "") {
-      current.rules.push({ allow: key === "allow", pattern: value });
+      if (value !== "") current.agents.push(value.toLowerCase());
+    } else if (key === "allow" || key === "disallow") {
+      inRules = true;
+      if (current !== undefined && value !== "") {
+        current.rules.push({ allow: key === "allow", pattern: value });
+      }
     }
   }
   const t = token.toLowerCase();
-  const own = groups.filter((g) => g.agents.some((a) => a !== "*" && t.startsWith(a)));
+  const own = groups.filter((g) => g.agents.includes(t));
   const chosen = own.length > 0 ? own : groups.filter((g) => g.agents.includes("*"));
   const rules = chosen.flatMap((g) => g.rules);
   return {

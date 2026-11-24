@@ -79,10 +79,12 @@ export interface ParsedSize {
 
 /**
  * Parses a package size such as "16 oz", "1.5 lb bag", "3 ct", "each" or "32 fl oz".
- * Returns undefined when no known unit is found.
+ * Returns undefined when no known unit is found, and for anything with more than one number
+ * ("1/2 lb", "1 lb 4 oz", "2 x 8 oz"), so an unparsed size is never ranked with a wrong number.
  */
 export function parseSize(text: string): ParsedSize | undefined {
   const s = text.trim().toLowerCase();
+  if ((s.match(/\d*\.?\d+/g) ?? []).length > 1) return undefined;
   const m = /(\d+(?:\.\d+)?|\.\d+)\s*(fl\.?\s*oz\.?|[a-z]+)/.exec(s);
   if (m?.[1] !== undefined && m[2] !== undefined) {
     const unit = canonicalUnit(m[2].replace(/\s+/g, " ").replace("fl. oz", "fl oz"));

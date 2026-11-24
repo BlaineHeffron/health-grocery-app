@@ -49,26 +49,13 @@ export function insertOffer(db: DatabaseSync, o: StoredOffer): void {
   );
 }
 
-export interface FetchRecord {
-  status: "ok" | "backoff";
-  detail: string | null;
-}
-
-export function getFetch(
-  db: DatabaseSync,
-  store: string,
-  term: string,
-  day: string,
-): FetchRecord | undefined {
-  const row = db
-    .prepare("SELECT status, detail FROM price_fetches WHERE store = ? AND term = ? AND day = ?")
-    .get(store, term, day);
-  return row === undefined
-    ? undefined
-    : {
-        status: row.status as FetchRecord["status"],
-        detail: (row.detail as string | null) ?? null,
-      };
+/** True when (store, term) was already fetched on `day`. */
+export function wasFetched(db: DatabaseSync, store: string, term: string, day: string): boolean {
+  return (
+    db
+      .prepare("SELECT 1 FROM price_fetches WHERE store = ? AND term = ? AND day = ?")
+      .get(store, term, day) !== undefined
+  );
 }
 
 /** Replaces the day's adapter offers for (store, term) and records the fetch, atomically. */
@@ -82,35 +69,43 @@ export function saveFetch(
     day: string;
     fetchedAt: string;
   },
-  result: { offers: Offer[] } | { backoff: string },
+  offers: readonly Offer[],
 ): void {
   db.exec("BEGIN");
   try {
-    if ("offers" in result) {
-      db.prepare(
-        "DELETE FROM price_offers WHERE store = ? AND term = ? AND observed_on = ? AND source = ?",
-      ).run(args.store, args.term, args.day, args.source);
-      for (const o of result.offers) {
-        insertOffer(db, { ...o, item: args.item, observedOn: args.day });
-      }
-    }
     db.prepare(
-      `INSERT INTO price_fetches (store, term, day, fetched_at, status, detail) VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT (store, term, day) DO UPDATE SET
-         fetched_at = excluded.fetched_at, status = excluded.status, detail = excluded.detail`,
-    ).run(
-      args.store,
-      args.term,
-      args.day,
-      args.fetchedAt,
-      "offers" in result ? "ok" : "backoff",
-      "offers" in result ? null : result.backoff,
-    );
+      "DELETE FROM price_offers WHERE store = ? AND term = ? AND observed_on = ? AND source = ?",
+    ).run(args.store, args.term, args.day, args.source);
+    for (const o of offers) insertOffer(db, { ...o, item: args.item, observedOn: args.day });
+    db.prepare(
+      `INSERT INTO price_fetches (store, term, day, fetched_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (store, term, day) DO UPDATE SET fetched_at = excluded.fetched_at`,
+    ).run(args.store, args.term, args.day, args.fetchedAt);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
     throw err;
   }
+}
+
+export interface Backoff {
+  /** Epoch ms; no request to the store's source before then, in any run. */
+  until: number;
+  detail: string;
+}
+
+export function getBackoff(db: DatabaseSync, store: string): Backoff | undefined {
+  const row = db.prepare("SELECT until_ms, detail FROM price_backoffs WHERE store = ?").get(store);
+  return row === undefined
+    ? undefined
+    : { until: Number(row.until_ms), detail: String(row.detail) };
+}
+
+export function setBackoff(db: DatabaseSync, store: string, b: Backoff): void {
+  db.prepare(
+    `INSERT INTO price_backoffs (store, until_ms, detail) VALUES (?, ?, ?)
+     ON CONFLICT (store) DO UPDATE SET until_ms = excluded.until_ms, detail = excluded.detail`,
+  ).run(store, b.until, b.detail);
 }
 
 /**

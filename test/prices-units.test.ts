@@ -107,3 +107,10 @@ test("catalog validation and item resolution", () => {
     /unit must be/,
   );
 });
+
+test("fractions and compound sizes are not parsed (never a wrong number)", () => {
+  assert.equal(parseSize("1/2 lb"), undefined);
+  assert.equal(parseSize("1 lb 4 oz"), undefined);
+  assert.equal(parseSize("2 x 8 oz"), undefined);
+  assert.deepEqual(parseSize("16.9 fl oz"), { size: 16.9, unit: "fl oz" });
+});

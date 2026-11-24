@@ -41,6 +41,7 @@ export function manualOffer(
   if (unit === "") throw new Error("missing unit");
   const date = input.date?.trim() || today;
   if (!isDay(date)) throw new Error(`bad date "${input.date}" (use YYYY-MM-DD)`);
+  if (date > today) throw new Error(`date ${date} is in the future (today is ${today})`);
   const promoText = (input.promo ?? "").trim().toLowerCase();
   if (!["", "0", "1", "yes", "no", "true", "false", "y", "n"].includes(promoText)) {
     throw new Error(`bad promo "${input.promo}" (yes or no)`);

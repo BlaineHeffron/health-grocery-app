@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import type { SearchLocation, StoreAdapter } from "./adapters/types.js";
 import type { BasketLine } from "./catalog.js";
 import { BackoffError } from "./fetcher.js";
-import { getFetch, saveFetch } from "./store.js";
+import { getBackoff, saveFetch, setBackoff, wasFetched } from "./store.js";
 
 export interface AdapterRun {
   store: string;
@@ -39,31 +39,32 @@ export async function collectOffers(
       run.detail = status.reason;
       continue;
     }
+    // A 429/403 back-off is honored by every later run until it expires, --refresh included.
+    const backoff = getBackoff(db, adapter.store);
+    if (backoff !== undefined && now() < backoff.until) {
+      run.status = "error";
+      run.detail = `backing off until ${new Date(backoff.until).toISOString()}: ${backoff.detail}`;
+      continue;
+    }
     for (const [term, item] of searches) {
-      const prior = getFetch(db, adapter.store, term, opts.day);
-      if (prior !== undefined && !opts.refresh) {
+      if (!opts.refresh && wasFetched(db, adapter.store, term, opts.day)) {
         run.cached++;
-        if (prior.status === "backoff") {
-          run.status = "error";
-          run.detail = `backed off earlier today: ${prior.detail ?? ""}`.trim();
-          break;
-        }
         continue;
       }
-      const key = { store: adapter.store, source: adapter.source, item, term, day: opts.day };
       try {
         run.fetched++;
         const offers = await adapter.search(term, opts.location);
-        saveFetch(db, { ...key, fetchedAt: new Date(now()).toISOString() }, { offers });
+        const fetchedAt = new Date(now()).toISOString();
+        saveFetch(
+          db,
+          { store: adapter.store, source: adapter.source, item, term, day: opts.day, fetchedAt },
+          offers,
+        );
       } catch (err) {
         run.status = "error";
         run.detail = (err as Error).message;
         if (err instanceof BackoffError) {
-          saveFetch(
-            db,
-            { ...key, fetchedAt: new Date(now()).toISOString() },
-            { backoff: run.detail },
-          );
+          setBackoff(db, adapter.store, { until: err.until, detail: run.detail });
         }
         break;
       }

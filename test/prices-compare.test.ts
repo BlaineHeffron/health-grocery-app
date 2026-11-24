@@ -175,14 +175,21 @@ test("CSV import validates every row first and writes nothing on error", () => {
   const ws = workspace();
   const db = openDb(ws.dbPath);
   migrate(db);
-  const bad =
-    "store,item,price,size,unit\naldi,leeks,1.5,1,lb\nnowhere,leeks,1,1,lb\naldi,leeks,abc,1,lb\naldi,onions,1,1,lb\n";
+  const bad = [
+    "store,item,price,size,unit,date",
+    "aldi,leeks,1.5,1,lb,",
+    "nowhere,leeks,1,1,lb,",
+    "aldi,leeks,abc,1,lb,",
+    "aldi,onions,1,1,lb,",
+    "aldi,leeks,1.2,1,lb,2027-03-01",
+  ].join("\n");
   assert.throws(
     () => importCsv(db, ws.catalog, bad, TODAY, new Date(NOW)),
     (e: Error) =>
       /row 3: unknown store "nowhere"/.test(e.message) &&
       /row 4: bad price "abc"/.test(e.message) &&
-      /row 5: unknown item "onions"/.test(e.message),
+      /row 5: unknown item "onions"/.test(e.message) &&
+      /row 6: date 2027-03-01 is in the future/.test(e.message),
   );
   assert.deepEqual(latestOffers(db, ["leeks"]), []);
   assert.throws(
@@ -261,6 +268,25 @@ test("prices add stores a manual price used by compare, with its age", async () 
     ),
     1,
   );
+  assert.equal(
+    await c.run(
+      "add",
+      "--store",
+      "aldi",
+      "--item",
+      "leeks",
+      "--price",
+      "1.2",
+      "--size",
+      "1",
+      "--unit",
+      "lb",
+      "--date",
+      "2026-11-25",
+    ),
+    1,
+  );
+  assert.match(c.err.at(-1) ?? "", /date 2026-11-25 is in the future \(today is 2026-11-24\)/);
   assert.equal(await c.run("compare", "--week", "1", "--json", "--offline"), 0);
   const json = JSON.parse(c.out.at(-1) ?? "{}");
   const greens = json.lines.find((l: { line: string }) => l.line === "collards or turnip greens");
@@ -351,9 +377,10 @@ test("adapter offers are cached per store, term and day; --refresh refetches", a
     leeks.excluded.some((e: { reason: string }) => e.reason === "cannot convert fl oz to lb"),
   );
 
+  const sent = net.calls.length;
   const again = cli(ws, adapters);
   assert.equal(await again.run("compare", "--week", "1"), 0);
-  assert.equal(searches(), 5, "same-day re-run makes no network calls");
+  assert.equal(net.calls.length, sent, "same-day re-run makes no network calls");
   assert.match(again.out.join("\n"), /harris-teeter: ok \(0 fetched, 5 cached\)/);
 
   const fresh = cli(ws, adapters);
@@ -364,32 +391,59 @@ test("adapter offers are cached per store, term and day; --refresh refetches", a
   db.close();
 });
 
-test("a 429 stops the adapter for the day, while manual prices still compare", async () => {
+test("a 429 back-off persists across runs, --refresh and weeks; manual prices still compare", async () => {
   const ws = workspace();
   seededDb(ws).close();
   const clock = fakeClock(NOW);
-  const net = fakeFetch(krogerRoutes({ "/v1/products": () => ({ status: 429 }) }), clock.now);
+  const net = fakeFetch(
+    krogerRoutes({ "/v1/products": () => ({ status: 429, headers: { "Retry-After": "3600" } }) }),
+    clock.now,
+  );
   const creds = { clientId: "a", clientSecret: "b" };
-  const fetcher = new PoliteFetcher({ fetchImpl: net.impl, now: clock.now, sleep: clock.sleep });
-  const adapter = new KrogerAdapter(fetcher, creds, clock.now);
+  // A new fetcher and adapter per run, like a new CLI process (in-memory back-off is gone).
+  const freshAdapter = () =>
+    new KrogerAdapter(
+      new PoliteFetcher({ fetchImpl: net.impl, now: clock.now, sleep: clock.sleep }),
+      creds,
+      clock.now,
+    );
   const db = openDb(ws.dbPath);
-  const lines = basketLines(ws.catalog, ws.rotation.entries);
-  const opts = {
+  const week = (n: number) =>
+    basketLines(
+      ws.catalog,
+      ws.rotation.entries.filter((e) => e.week === n),
+    );
+  const opts = (refresh: boolean) => ({
     day: TODAY,
     location: { zip: "29401", radiusMiles: 15 },
-    refresh: false,
+    refresh,
     now: clock.now,
-  };
-  const [run] = await collectOffers(db, [adapter], lines, opts);
+  });
+  const products = () => net.calls.filter((x) => x.url.includes("/v1/products")).length;
+  const [run] = await collectOffers(db, [freshAdapter()], week(1), opts(false));
   assert.equal(run?.status, "error");
   assert.match(run?.detail ?? "", /answered 429; backing off/);
-  assert.equal(net.calls.filter((x) => x.url.includes("/v1/products")).length, 1);
-  const [later] = await collectOffers(db, [adapter], lines, opts);
-  assert.match(later?.detail ?? "", /^backed off earlier today/);
-  assert.equal(net.calls.filter((x) => x.url.includes("/v1/products")).length, 1);
+  assert.equal(products(), 1);
+  const sent = net.calls.length;
+  clock.t += 60_000;
+  for (const [lines, refresh] of [
+    [week(1), false],
+    [week(1), true],
+    [week(2), false],
+  ] as const) {
+    const [later] = await collectOffers(db, [freshAdapter()], lines, opts(refresh));
+    assert.equal(later?.status, "error");
+    assert.match(later?.detail ?? "", /^backing off until 2026-11-24T\S+Z: .*answered 429/);
+  }
+  assert.equal(net.calls.length, sent, "no request of any kind while backing off");
+  clock.t += 60 * 60 * 1000; // past Retry-After
+  await collectOffers(db, [freshAdapter()], week(2), opts(false));
+  assert.equal(products(), 2);
   db.close();
 
-  const c = cli(ws, () => [new KrogerAdapter(fetcher, undefined)]);
+  const c = cli(ws, () => [
+    new KrogerAdapter(new PoliteFetcher({ fetchImpl: net.impl }), undefined),
+  ]);
   assert.equal(await c.run("compare", "--week", "1"), 0);
   assert.match(
     c.out.join("\n"),
