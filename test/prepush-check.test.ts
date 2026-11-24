@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -223,6 +223,31 @@ test("fails when HEAD shares no history with the base (unrelated history)", () =
   assert.equal(r.status, 1, r.output);
   assert.match(r.output, /unrelated history/);
 });
+
+/** A directory with a `git` stub that fails (exit 128) when given `failArg`, else runs git. */
+function failingGit(failArg: string): string {
+  const realGit = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  const dir = mkdtempSync(join(tmpdir(), "hga-gitstub-"));
+  writeFileSync(
+    join(dir, "git"),
+    `#!/bin/sh\nfor a in "$@"; do [ "$a" = "${failArg}" ] && { echo "fatal: stub" >&2; exit 128; }; done\nexec "${realGit}" "$@"\n`,
+  );
+  chmodSync(join(dir, "git"), 0o755);
+  return dir;
+}
+
+for (const [name, failArg] of [
+  ["git without --remerge-diff (< 2.36)", "--remerge-diff"],
+  ["a failing content diff", "--unified=0"],
+] as const) {
+  test(`never reports OK when the scan fails: ${name}`, () => {
+    const dir = repo();
+    commit(dir, { "env.txt": j("KITCHENOWL_", "TOKEN=abc\n") });
+    const r = check(dir, { PATH: `${failingGit(failArg)}:${process.env.PATH}` });
+    assert.notEqual(r.status, 0, r.output);
+    assert.doesNotMatch(r.output, /prepush-check: OK/);
+  });
+}
 
 test("exits 2 when the base ref is missing", () => {
   const dir = repo();

@@ -6,6 +6,8 @@
 # local paths (which would reveal the private health folder or the host layout).
 # Exits 0 when clean, 1 with a list of findings otherwise. Matched values are never printed.
 set -euo pipefail
+# Make failures inside $(...) abort the script too, so a failed scan never reports OK.
+shopt -s inherit_errexit
 
 base="${PREPUSH_BASE:-origin/main}"
 if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null; then
@@ -16,6 +18,11 @@ fi
 if ! git merge-base "$base" HEAD >/dev/null 2>&1; then
   echo "prepush-check: FAILED: HEAD shares no history with ${base} (unrelated history; rebase onto ${base})" >&2
   exit 1
+fi
+
+if ! git log -1 --format= --remerge-diff HEAD >/dev/null 2>&1; then
+  echo "prepush-check: FAILED: git 2.36 or newer is required (git log --remerge-diff)" >&2
+  exit 2
 fi
 
 findings=()
@@ -65,7 +72,7 @@ added="$(
   {
     git log --format= -p --remerge-diff --text --no-color --no-ext-diff --unified=0 "${base}..HEAD"
     git diff --cached -p --text --no-color --no-ext-diff --unified=0
-  } | awk '
+  } | tr -d '\000' | awk '
     /^diff --git / { header = 1; next }
     header && /^\+\+\+ / { f = substr($0, 5); sub(/^"?b\//, "", f); sub(/"$/, "", f); next }
     /^@@/          { header = 0; next }
