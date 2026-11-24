@@ -52,7 +52,7 @@ are the reviewer's own checks, same User-Agent, robots.txt first):
 
 | Host | Requests | What |
 |---|---|---|
-| `prices.openfoodfacts.org` | 20 + 3 | robots.txt ×2; API docs ×4 (`/api/openapi.json` ×2: timeout, 404; `/api/schema/`, `/api/docs/`: timeouts); API research ×3 (all failed, see below); `/data/locations.jsonl.gz` ×1 (1,272,508 bytes); `/data/prices.jsonl.gz` HEAD ×6 and GET ×2 (the first, 15,761,230 bytes, came mid-regeneration and was truncated, so it was discarded; the second, 23,293,936 bytes, `last-modified` 23:08:44 UTC, passed `gzip -t`); the app's one real run ×2 (robots.txt and the nearby query). Reviewer: robots.txt, the locations dump, one API call (`radius_km=60`, 200) |
+| `prices.openfoodfacts.org` | 20 + 5 | robots.txt ×2; API docs ×4 (`/api/openapi.json` ×2: timeout, 404; `/api/schema/`, `/api/docs/`: timeouts); API research ×3 (all failed, see below); `/data/locations.jsonl.gz` ×1 (1,272,508 bytes); `/data/prices.jsonl.gz` HEAD ×6 and GET ×2 (the first, 15,761,230 bytes, came mid-regeneration and was truncated, so it was discarded; the second, 23,293,936 bytes, `last-modified` 23:08:44 UTC, passed `gzip -t`); the app's one real run ×2 (robots.txt and the nearby query). Reviewer: robots.txt, the locations dump, one API call (`radius_km=60`, 200), the real run on the final code ×2 (robots.txt and the nearby query) |
 | `world.openfoodfacts.org` | 2 + 2 | robots.txt; `/terms-of-use` (allowed: its `*` group disallows only `/api`, `/cgi`, `/facets`). Reviewer: the same two |
 | `wiki.openfoodfacts.org` | 1 | robots.txt only |
 | `github.com`, `raw.githubusercontent.com`, `api.github.com` | 1, 16 + 13, 3 | robots.txt on each (raw and api answer 404: no rules); the Open Prices source code and docs (README, API.md, data guide, filters, serializers, models, pagination, views, settings, export script); one repository tree listing and one lookup of the `main` commit id. Reviewer: raw robots.txt and 12 source files at that commit |
@@ -89,7 +89,9 @@ are the reviewer's own checks, same User-Agent, robots.txt first):
   `total: 2` (the two Summerville prices) in the documented envelope; the adapter, run offline
   over that response, mapped the Publix price and dropped Earth Fare as unlisted. The app's
   own one real run (2026-11-24 23:13 UTC, 2 requests, with code that did not yet check the
-  envelope) proves only that the nearby query got HTTP 200 with parseable JSON.
+  envelope) proves only that the nearby query got HTTP 200 with parseable JSON. A real run of
+  the final code (reviewer, 2026-11-24 23:52 UTC, 2 requests) answered `ok` with the
+  documented envelope and 0 rows within 15 mi, matching the dump.
 - **Freshness.** From the complete prices dump (regenerated daily; the copy read was
   23,293,936 bytes, `last-modified` 2026-11-24 23:08:44 UTC, 349,620 rows), ages on
   2026-11-24 of the 48,289 US prices: median 285 days, quartiles 110 and 389 days; 3.2% are
@@ -118,7 +120,9 @@ are the reviewer's own checks, same User-Agent, robots.txt first):
   15 mi). It is clearly allowed and small, so it is built and runs with the Kroger adapter; it
   will pick up Charleston prices if contributors add them. Its mapping is verified against
   synthetic fixtures shaped like the API serializer and against the reviewer's one live
-  response above (run offline); the adapter itself has not fetched a non-empty live page.
+  response above (run offline). A real run of the final code (reviewer, 23:52 UTC, 2 requests)
+  got a valid empty page: 0 rows within 15 mi. The adapter itself has not fetched a non-empty
+  live page.
 
 **Open Prices adapter** (`src/prices/adapters/open-prices.ts`, source id `open-prices`):
 
