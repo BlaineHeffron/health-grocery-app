@@ -7,4 +7,5 @@ import type { CommandEntry } from "./types.js";
 // biome-ignore format: one entry per line keeps additions to a single line each
 export const commands: readonly CommandEntry[] = [
   { name: "db", summary: "Database tasks (migrate)", load: async () => (await import("./db.js")).dbCommand },
+  { name: "rotation", summary: "Weekly rotation push to KitchenOwl (show, push, clear)", load: async () => (await import("./rotation.js")).rotationCommand },
 ];
