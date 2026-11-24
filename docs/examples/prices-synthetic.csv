@@ -1,0 +1,30 @@
+store,item,price,size,unit,date,promo,product
+aldi,leeks,1.89,1,lb,2026-11-21,,
+publix,leeks,2.99,1,lb,2026-11-22,,
+food-lion,leeks,2.49,1,lb,2026-11-23,yes,
+aldi,carrots,0.99,2,lb,2026-11-21,,Carrots 2 lb bag
+publix,carrots,1.69,1,lb,2026-11-22,,
+lowes-foods,carrots,1.29,1,lb,2026-11-20,,
+publix,chard,2.49,1,bunch,2026-11-22,,
+lowes-foods,chard,2.29,1,bunch,2026-11-20,,
+whole-foods,chard,2.99,1,bunch,2026-11-19,,
+aldi,mushrooms,1.99,8,oz,2026-11-21,,
+publix,mushrooms,2.79,8,oz,2026-11-22,,
+trader-joes,mushrooms,2.49,10,oz,2026-11-18,,
+walmart,broccoli,1.98,1,lb,2026-11-23,,
+aldi,broccoli,1.79,12,oz,2026-11-21,,Broccoli crowns 12 oz
+publix,broccoli,2.49,1,lb,2026-11-22,,
+aldi,butternut squash,0.99,1,lb,2026-11-21,,
+publix,acorn squash,1.29,1,lb,2026-11-22,,
+walmart,spaghetti squash,0.98,1,lb,2026-11-23,,
+publix,okra,3.99,1,lb,2026-08-02,,Okra (summer price)
+walmart,zucchini,1.47,1,lb,2026-11-23,,
+publix,zucchini,1.99,1,lb,2026-11-22,,
+publix,lettuce,2.29,1,each,2026-11-22,,Romaine head
+aldi,lettuce,3.49,3,ct,2026-11-21,,Romaine hearts 3 ct
+publix,arugula,3.99,5,oz,2026-11-22,,
+trader-joes,arugula,2.49,7,oz,2026-11-18,,
+aldi,arugula,2.99,32,fl oz,2026-11-21,,Arugula salad kit (volume label)
+costco,lentils,7.99,4,lb,2026-11-15,,Lentils 4 lb
+walmart,black beans,0.98,1,lb,2026-11-23,,
+aldi,chickpeas,0.79,15.5,oz,2026-11-21,,Canned chickpeas

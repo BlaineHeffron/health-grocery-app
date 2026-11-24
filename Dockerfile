@@ -17,7 +17,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist/src ./dist/src
 COPY migrations ./migrations
-COPY data/rotation.yaml ./data/rotation.yaml
+COPY data/rotation.yaml data/price-catalog.yaml ./data/
 # The named volume mounts here; pre-create it so the volume is owned by the node user.
 RUN mkdir -p /data && chown node:node /data
 USER node

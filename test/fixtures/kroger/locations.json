@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "locationId": "70100001",
+      "chain": "KROGER",
+      "name": "Kroger - Example Plaza",
+      "address": {
+        "addressLine1": "1 Example Plaza",
+        "city": "Example",
+        "state": "SC",
+        "zipCode": "29400"
+      }
+    },
+    {
+      "locationId": "09700123",
+      "chain": "HARRIS TEETER",
+      "name": "Harris Teeter - Example Rd",
+      "address": {
+        "addressLine1": "100 Example Rd",
+        "city": "Charleston",
+        "state": "SC",
+        "zipCode": "29401"
+      }
+    }
+  ],
+  "meta": { "pagination": { "start": 0, "limit": 50, "total": 2 } }
+}
