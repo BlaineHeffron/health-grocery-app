@@ -1,0 +1,12 @@
+# Pushes the next rotation week to the KitchenOwl shopping list (hga rotation push).
+# NOT installed or enabled by this repo. See docs/rotation.md, "Enabling the weekly timer".
+# WorkingDirectory is a placeholder: set it to your checkout (it holds .env and the compose file).
+[Unit]
+Description=health-grocery-app: weekly rotation push to KitchenOwl
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/health-grocery-app
+ExecStart=/usr/bin/docker compose run --rm hga rotation push
