@@ -1,0 +1,16 @@
+# One service: the hga CLI. It publishes no ports. If a later phase adds an HTTP UI, publish it
+# as "127.0.0.1:<port>:<port>" only (never 0.0.0.0, never host networking).
+name: health-grocery-app
+services:
+  hga:
+    build: .
+    image: health-grocery-app:local
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HGA_DB_PATH: /data/hga.db
+    volumes:
+      - hga-data:/data
+volumes:
+  hga-data:

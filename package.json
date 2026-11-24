@@ -1,0 +1,27 @@
+{
+  "name": "health-grocery-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Companion service for KitchenOwl: macros, nutrient-variety rotation, local grocery prices.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "hga": "dist/src/bin.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "check": "npm run typecheck && npm run lint",
+    "test": "npm run build && node --test --disable-warning=ExperimentalWarning \"dist/test/**/*.test.js\"",
+    "hga": "node --disable-warning=ExperimentalWarning dist/src/bin.js"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.9",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}
